@@ -26,26 +26,32 @@ window.Admin = {
             onValue(ref(window.db, 'events_v1'), snapshot => {
                 if (snapshot.exists()) {
                     this.state.events = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    localStorage.setItem('admin_events', JSON.stringify(this.state.events));
-                    if (this.state.currentTab === 'events' || this.state.currentTab === 'dashboard') this.refreshActiveView();
+                } else {
+                    this.state.events = [];
                 }
+                localStorage.setItem('admin_events', JSON.stringify(this.state.events));
+                if (this.state.currentTab === 'events' || this.state.currentTab === 'dashboard') this.refreshActiveView();
             });
 
             // Users Listener
             onValue(ref(window.db, 'users_v1'), snapshot => {
                 if (snapshot.exists()) {
                     this.state.users = Object.values(snapshot.val());
-                    localStorage.setItem('admin_users', JSON.stringify(this.state.users));
-                    if (this.state.currentTab === 'users') this.refreshActiveView();
+                } else {
+                    this.state.users = [];
                 }
+                localStorage.setItem('admin_users', JSON.stringify(this.state.users));
+                if (this.state.currentTab === 'users') this.refreshActiveView();
             });
 
             // Contacts Listener (for Analytics)
             onValue(ref(window.db, 'contacts_v1'), snapshot => {
                 if (snapshot.exists()) {
                     this.state.contacts = Object.values(snapshot.val());
-                    if (this.state.currentTab === 'analytics' || this.state.currentTab === 'dashboard') this.refreshActiveView();
+                } else {
+                    this.state.contacts = [];
                 }
+                if (this.state.currentTab === 'analytics' || this.state.currentTab === 'dashboard') this.refreshActiveView();
             });
         }
 
@@ -136,7 +142,7 @@ window.Admin = {
                     <h4 style="margin-bottom: 20px;">Quick Links</h4>
                     <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('events')">Create New Event</button>
                     <button class="btn-secondary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('users')">Provision Users</button>
-                    <button class="btn-secondary" style="width: 100%; border-color: #2ecc71; color: #2ecc71;" onclick="Admin.exportLeads()">
+                    <button class="btn-secondary" style="width: 100%; border-color: #2ecc71; color: #2ecc71;" onclick="Admin.exportContacts()">
                         <i data-lucide="download"></i> Export All Contacts (XLSX)
                     </button>
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
@@ -443,7 +449,7 @@ window.Admin = {
             </div>
 
             <div class="premium-card" style="margin-top: 30px; border-top: 4px solid var(--admin-accent);">
-                <h4 style="margin-bottom: 20px; color: var(--text-secondary);">Researcher Performance Leaderboard</h4>
+                <h4 style="margin-bottom: 20px; color: var(--text-secondary);">User Performance Leaderboard</h4>
                 <div style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px;">
                     ${topUsers.map(([name, count], i) => `
                         <div style="min-width: 160px; text-align: center; padding: 25px; background: rgba(255,255,255,0.05); border-radius: 20px; border: 1px solid var(--glass-border); transition: transform 0.3s ease;" 
@@ -453,7 +459,7 @@ window.Admin = {
                             <div style="color: var(--admin-accent); font-size: 18px; font-weight: 900; margin-top: 8px;">${count} <span style="font-size: 10px; font-weight: 400; opacity: 0.6; color: var(--text-secondary);">Contacts</span></div>
                         </div>
                     `).join('')}
-                    ${topUsers.length === 0 ? '<p style="opacity: 0.3; width: 100%; text-align: center; padding: 40px;">Waiting for first leads to sync...</p>' : ''}
+                    ${topUsers.length === 0 ? '<p style="opacity: 0.3; width: 100%; text-align: center; padding: 40px;">Waiting for first contacts to sync...</p>' : ''}
                 </div>
             </div>
         `;
@@ -656,9 +662,9 @@ window.Admin = {
         }
     },
 
-    exportLeads() {
+    exportContacts() {
         if (!this.state.contacts.length) {
-            alert('No leads to export.');
+            alert('No contacts to export.');
             return;
         }
 
@@ -671,15 +677,15 @@ window.Admin = {
             'Website': c.website || '',
             'Address': c.address || '',
             'Event': c.eventName || '',
-            'Researcher': c.researcher || '',
+            'User': c.researcher || c.userName || '',
             'Notes': c.notes || '',
             'Captured At': new Date(c.timestamp).toLocaleString()
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Leads");
-        XLSX.writeFile(wb, `Bizconnex_Leads_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, "Contacts");
+        XLSX.writeFile(wb, `Bizconnex_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 };
 

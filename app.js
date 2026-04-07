@@ -307,7 +307,7 @@ const App = {
                         `}
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="font-size: 16px; font-family: 'Outfit';">Recent Leads</h3>
+                            <h3 style="font-size: 16px; font-family: 'Outfit';">Recent Contacts</h3>
                         </div>
 
                         <div id="contacts-list">
@@ -825,7 +825,7 @@ const App = {
                             <button class="btn-primary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.editContact('${c.id}')"><i data-lucide="edit" style="width: 16px;"></i></button>
                             <button class="btn-danger" style="flex: 1; padding: 8px; background: rgba(231, 76, 60, 0.1); border-color: #e74c3c33; color: #e74c3c;" onclick="event.stopPropagation(); App.deleteContact('${c.id}')"><i data-lucide="trash-2" style="width: 16px;"></i></button>
                         </div>
-                        <p style="font-size: 11px; opacity: 0.5; margin-bottom: 5px;">Lead Notes</p>
+                        <p style="font-size: 11px; opacity: 0.5; margin-bottom: 5px;">Contact Notes</p>
                         <div class="notes-container" style="font-size: 13px; min-height: 40px; overflow-wrap: break-word; color: var(--accent); font-style: italic;">${c.notes || 'No added context.'}</div>
                     </div>
                 </div>
