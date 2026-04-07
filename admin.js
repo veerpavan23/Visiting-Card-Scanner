@@ -308,6 +308,7 @@ window.Admin = {
                             const newUser = {
                                 name,
                                 mobile,
+                                password: mobile,
                                 role: 'user',
                                 createdAt: new Date().toISOString()
                             };
@@ -501,7 +502,14 @@ window.Admin = {
         const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '').replace(/[()-]/g, '');
         if (!name || !mobile) return;
 
-        const newUser = { name, mobile, role: 'user', createdAt: new Date().toISOString() };
+        // Default password is the mobile number for newly provisioned users
+        const newUser = { 
+            name, 
+            mobile, 
+            password: mobile, 
+            role: 'user', 
+            createdAt: new Date().toISOString() 
+        };
         if (window.Cloud) await window.Cloud.saveUser(newUser);
         this.hideCreateModal();
         this.refreshActiveView();

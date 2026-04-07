@@ -109,8 +109,7 @@ const App = {
         this.state.currentScreen = name;
         const container = document.getElementById('screen-container');
         const nav = document.getElementById('global-nav');
-
-        container.innerHTML = '';
+        if (!container || !nav) return;
 
         const showNavScreens = ['home', 'contacts', 'export', 'adminDashboard'];
         nav.classList.toggle('hidden', !showNavScreens.includes(name));
@@ -120,19 +119,19 @@ const App = {
             if (this.screens[name]) {
                 html = this.screens[name].call(this);
             } else {
-                throw new Error("Unknown Screen: " + name);
+                console.error("Unknown Screen:", name);
+                return this.navigateTo('home');
             }
         } catch (error) {
             console.error("Rendering Crash:", error);
-            html = `<div class="screen" style="padding: 40px; text-align: center;"><h2>Error</h2><p>${error.message}</p></div>`;
+            return this.navigateTo('home');
         }
 
         container.innerHTML = html;
         if (name === 'crop') {
-            console.log('App: Initializing Cropper for screen:', name);
-            setTimeout(() => this.initCropper(), 50); // Slight delay for DOM sync
+            setTimeout(() => this.initCropper(), 50);
         }
-        try { if (window.lucide) lucide.createIcons(); } catch (e) { console.warn('Lucide failed to load icons:', e); }
+        try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     },
 
     // --- Screens ---
@@ -211,7 +210,7 @@ const App = {
                             <h1 style="font-size: 24px; font-family: 'Outfit';">Biz<span class="text-accent">connex</span></h1>
                             <p style="color: var(--text-secondary); font-size: 11px;">Networking Intelligence</p>
                         </div>
-                        <button onclick="App.logout(event)" style="background: none; border: none; color: #ff4d4d; font-size: 20px;"><i data-lucide="power"></i></button>
+                        <button onclick="App.logout()" style="background: none; border: none; color: #ff4d4d; font-size: 20px;"><i data-lucide="power"></i></button>
                     </header>
 
                     <div class="screen-content" style="padding: 24px;">
@@ -502,6 +501,45 @@ const App = {
                     </div>
                 </div>
             `;
+        },
+
+        contacts() {
+            const event = this.state.activeEvent;
+            const contacts = this.state.contacts.filter(c => !event || c.eventId === event.id);
+
+            return `
+                <div class="screen contacts-screen">
+                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
+                        <h2 style="font-size: 20px; font-family: 'Outfit';">Captured Leads</h2>
+                        <p style="color: var(--text-secondary); font-size: 11px;">Viewing leads for: ${event ? event.name : 'All Events'}</p>
+                    </header>
+                    <div class="screen-content" style="padding: 20px;">
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <div style="position: relative;">
+                                <i data-lucide="search" style="position: absolute; left: 12px; top: 12px; width: 16px; opacity: 0.5;"></i>
+                                <input type="text" class="form-input" placeholder="Search by name, company..." style="padding-left: 40px;" oninput="App.filterContacts(this.value)">
+                            </div>
+                        </div>
+                        <div id="contacts-full-list">
+                            ${contacts.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No leads captured yet.</div>' : contacts.map(c => this.renderContactItem(c)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    },
+
+    filterContacts(query) {
+        const q = query.toLowerCase();
+        const event = this.state.activeEvent;
+        const filtered = this.state.contacts.filter(c => 
+            (!event || c.eventId === event.id) && 
+            ((c.name || '').toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
+        );
+        const list = document.getElementById('contacts-full-list');
+        if (list) {
+            list.innerHTML = filtered.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No matching leads.</div>' : filtered.map(c => this.renderContactItem(c)).join('');
+            if (window.lucide) lucide.createIcons();
         }
     },
 
@@ -513,17 +551,14 @@ const App = {
         const mobileEl = document.getElementById('login-mobile');
         const passEl = document.getElementById('login-pass');
         
-        if (!mobileEl || !passEl) {
-            console.error('App: Login fields missing from DOM');
-            return;
-        }
+        if (!mobileEl || !passEl) return;
         
         const mobile = mobileEl.value.trim();
         const pass = passEl.value.trim();
         
+        // Admin Master Bypass
         if (mobile === 'admin' && pass === 'admin123') {
-            console.log('App: Admin Login Successful');
-            const admin = { mobile: 'System Admin', id: 'admin', isAdmin: true };
+            const admin = { name: 'System Admin', mobile: 'admin', isAdmin: true };
             this.state.currentUser = admin;
             this.state.isAdmin = true;
             localStorage.setItem('bizconnex_user', JSON.stringify(admin));
@@ -531,36 +566,21 @@ const App = {
             return;
         }
 
-        const user = this.state.users.find(u => u.mobile === mobile && u.password === pass);
+        const user = this.state.users.find(u => u.mobile === mobile && (u.password === pass || u.mobile === pass));
         if (user) {
-            console.log('App: User Login Successful');
             this.state.currentUser = user;
             this.state.isAdmin = false;
             localStorage.setItem('bizconnex_user', JSON.stringify(user));
-            
-            // Auto-select event if only one is active
-            const authorizedEvents = this.state.events.filter(e => e.userIds?.includes(user.id));
-            if (authorizedEvents.length === 1) {
-                this.state.activeEvent = authorizedEvents[0];
-                localStorage.setItem('bizconnex_active_event', JSON.stringify(this.state.activeEvent));
-            }
-            
             this.navigateTo('home');
         } else {
-            console.warn('App: Login Denied');
             alert('Invalid Credentials. Access is restricted to authorized users.');
         }
     },
 
-    logout(event) {
-        if (event) event.stopPropagation();
+    logout() {
         if (confirm('Are you sure you want to log out?')) {
-            localStorage.removeItem('bizconnex_user');
-            localStorage.removeItem('bizconnex_active_event');
-            this.state.currentUser = null;
-            this.state.activeEvent = null;
-            this.state.isAdmin = false;
-            window.location.reload(); // Force full state reset
+            localStorage.clear(); // Wipe all for security
+            window.location.reload();
         }
     },
 
@@ -612,6 +632,8 @@ const App = {
                     image: next.image, 
                     eventName: next.eventName, 
                     eventId: next.eventId,
+                    researcher: this.state.currentUser ? this.state.currentUser.name : 'Unknown',
+                    researcherId: this.state.currentUser ? this.state.currentUser.mobile : 'Unknown',
                     timestamp: next.timestamp,
                     notes: next.notes || data.notes || ''
                 };
