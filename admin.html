@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Liquid Premium Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css?v=12.15">
+    <style>
+        :root {
+            --admin-accent: #3498db;
+        }
+        body { background: #050a14; overflow-x: hidden; }
+        .admin-sidebar {
+            width: 260px;
+            height: 100vh;
+            background: rgba(10, 25, 47, 0.8);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 30px;
+        }
+        .admin-main {
+            margin-left: 260px;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .event-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .event-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-active { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+        .status-expired { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+        .status-pending { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .modal-card {
+            background: #0a192f;
+            width: 500px;
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--glass-border);
+        }
+    </style>
+</head>
+<body>
+    <aside class="admin-sidebar">
+        <h2 style="font-family: 'Outfit'; font-size: 20px; margin-bottom: 40px;">
+            <i data-lucide="shield-check" class="text-accent" style="vertical-align: middle; margin-right: 8px;"></i>
+            Liquid<span class="text-accent">Admin</span>
+        </h2>
+        <nav style="display: flex; flex-direction: column; gap: 15px;">
+            <button class="btn-secondary" style="text-align: left; background: rgba(255,255,255,0.05);"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+            <button class="btn-secondary" style="text-align: left;"><i data-lucide="calendar"></i> Events</button>
+            <button class="btn-secondary" style="text-align: left;"><i data-lucide="users"></i> User Access</button>
+            <button class="btn-secondary" style="text-align: left;"><i data-lucide="bar-chart-3"></i> Analytics</button>
+            <button class="btn-secondary" style="text-align: left; margin-top: 20px; color: #ff4d4d; border-color: rgba(255, 77, 77, 0.2);" onclick="Admin.logout()"><i data-lucide="log-out"></i> Logout</button>
+        </nav>
+    </aside>
+
+    <main class="admin-main">
+        <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
+            <div>
+                <h1 style="font-size: 32px;">Event Overview</h1>
+                <p style="color: var(--text-secondary);">Manage authorization windows and scan limits.</p>
+            </div>
+            <button class="btn-primary" onclick="Admin.showCreateModal()">
+                <i data-lucide="plus"></i> Create New Event
+            </button>
+        </header>
+
+        <div class="stat-grid">
+            <div class="premium-card">
+                <p style="font-size: 13px; color: var(--text-secondary);">Total Scans</p>
+                <h2 id="total-scans">12,450</h2>
+            </div>
+            <div class="premium-card">
+                <p style="font-size: 13px; color: var(--text-secondary);">Active Events</p>
+                <h2 id="active-events">3</h2>
+            </div>
+            <div class="premium-card">
+                <p style="font-size: 13px; color: var(--text-secondary);">Authorized Users</p>
+                <h2 id="auth-users">640</h2>
+            </div>
+        </div>
+
+        <div id="events-list">
+            <!-- Event cards injected here -->
+        </div>
+    </main>
+
+    <!-- Create Event Modal -->
+    <div id="create-modal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 style="margin-bottom: 20px;">Create New Event</h3>
+            <div class="form-group">
+                <label>Event Name</label>
+                <input type="text" id="event-name" class="form-input" placeholder="e.g. GCC Tech Summit 2026">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="datetime-local" id="event-start" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="datetime-local" id="event-end" class="form-input">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Mobile Number Access (Comma separated)</label>
+                <textarea id="event-numbers" class="form-input" style="height: 100px;" placeholder="+919876543210, +919000111222..."></textarea>
+            </div>
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
+                <button class="btn-primary" style="flex: 2;" onclick="Admin.createEvent()">Save Event</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="firebase-config.js?v=12.15"></script>
+    <script src="admin.js?v=12.15"></script>
+    <script>
+        lucide.createIcons();
+        window.addEventListener('load', () => {
+            if (window.Admin) Admin.init();
+        });
+    </script>
+</body>
+</html>

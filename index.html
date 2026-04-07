@@ -1,0 +1,83 @@
+    <title>Bizconnex Card Scanner | Global Business Networking</title>
+    
+    <!-- Meta for PWA-like appearance -->
+    <meta name="theme-color" content="#aa0f1d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <!-- Google Fonts: Outfit (Modern Business) & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Cropper.js (For Image Adjustments) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <link rel="stylesheet" href="styles.css?v=14.00">
+ </head>
+ <body>
+     <div id="app" class="app-container">
+         <!-- Screens will be dynamically injected here -->
+         <main id="screen-container"></main>
+
+         <!-- Global Navigation (Hidden on Splash/Onboarding) -->
+         <nav id="global-nav" class="nav-bar hidden">
+             <button class="nav-item active" data-screen="home">
+                 <i data-lucide="home"></i>
+                 <span>Home</span>
+             </button>
+             <button class="nav-item" data-screen="capture">
+                 <div class="scan-button-fab">
+                     <i data-lucide="camera"></i>
+                 </div>
+             </button>
+             <button class="nav-item" data-screen="contacts">
+                 <i data-lucide="users"></i>
+                 <span>Contacts</span>
+             </button>
+         </nav>
+         
+         <!-- Action Overlays (Toasts, Modals) -->
+         <div id="notif-container"></div>
+     </div>
+
+     <!-- Scripts -->
+     <!-- Firebase Cloud Bridge (module - runs async) -->
+      <script type="module" src="firebase-config.js?v=14.07"></script>
+     <!-- App Logic -->
+      <script src="app.js?v=14.07"></script>
+     <script>
+          // --- THE KILL-SWITCH: Force Cache Clear & Disable SW ---
+          if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(registrations => {
+                  for(let registration of registrations) { registration.unregister(); }
+              });
+          }
+          if ('caches' in window) {
+              caches.keys().then(names => {
+                  for (let name of names) caches.delete(name);
+              });
+          }
+
+          // --- protocol Warning ---
+          if (window.location.protocol === 'file:') {
+              const b = document.createElement('div');
+              b.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ff4d4d; color: #fff; padding: 15px; text-align: center; z-index: 100000; font-weight: 800; font-family: sans-serif;';
+              b.innerHTML = '⚠️ ERROR: TESTING ON "FILE://" PROTOCOL IS BLOCKED. <br> <small>Please use <u>http://localhost:8000/index.html</u> instead.</small>';
+              document.body.prepend(b);
+          }
+     </script>
+</body>
+</html>
