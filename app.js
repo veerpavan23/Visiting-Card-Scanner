@@ -498,7 +498,7 @@ const App = {
                 <div class="screen review-screen">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px;">
                         <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
-                        <h2 style="font-size: 18px; font-family: 'Outfit';">Edit Lead</h2>
+                        <h2 style="font-size: 18px; font-family: 'Outfit';">Edit Contact</h2>
                     </header>
                     <div class="screen-content" style="padding-bottom: 100px;">
                         <div class="premium-card" style="background: #000; text-align: center;"><img id="review-image-preview" style="max-height: 200px; max-width: 100%; object-fit: contain;"></div>
@@ -591,7 +591,7 @@ const App = {
     },
 
     // --- Authentication ---
-    handleLogin(event) {
+    async handleLogin(event) {
         if (event) event.preventDefault();
         console.log('App: Attempting Login...');
         
@@ -616,12 +616,19 @@ const App = {
             return;
         }
 
-        // Wait check if users are still loading from Cloud
-        if (this.state.users.length === 0) {
-            console.warn('App: Users list empty, trying refresh...');
-            this.syncCloud(); 
-            // Fallback to local storage if available
-            this.state.users = JSON.parse(localStorage.getItem('bizconnex_users') || '[]');
+        // --- Proactive Cloud Fetch ---
+        // If users list is empty or stale, force a fresh fetch from Cloud Bridge
+        if (this.state.users.length === 0 && window.Cloud) {
+            console.warn('App: Users list empty, forcing Cloud fetch...');
+            try {
+                const cloudUsers = await window.Cloud.getUsers();
+                if (cloudUsers && cloudUsers.length > 0) {
+                    this.state.users = cloudUsers;
+                    localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                }
+            } catch (e) {
+                console.error('App: Proactive fetch failed', e);
+            }
         }
 
         const user = this.state.users.find(u => u.mobile === mobile && (u.password === pass || u.mobile === pass));
@@ -1223,7 +1230,7 @@ END:VCARD`;
         );
     },
     deleteContact(id) {
-        if (confirm('Delete Lead?')) {
+        if (confirm('Delete Contact?')) {
             this.state.contacts = this.state.contacts.filter(c => c.id !== id);
             localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
             this.navigateTo('home');

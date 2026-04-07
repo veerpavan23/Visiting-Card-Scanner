@@ -123,7 +123,7 @@ window.Admin = {
                                     <strong>${c.name}</strong>
                                     <span style="opacity: 0.5;">${new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 </div>
-                                <div style="color: var(--admin-accent); font-size: 10px;">${c.researcher} @ ${c.eventName}</div>
+                                <div style="color: var(--admin-accent); font-size: 10px;">${c.researcher || c.userName || 'User'} @ ${c.eventName}</div>
                             </div>
                         `).join('')}
                         ${this.state.contacts.length === 0 ? '<p style="opacity: 0.3; padding: 20px; text-align: center;">No activity yet.</p>' : ''}
@@ -322,7 +322,8 @@ window.Admin = {
                     <td style="padding: 15px 24px;"><code style="background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; font-family: monospace; letter-spacing: 1px;">${u.password || '---'}</code></td>
                     <td style="padding: 15px 24px; font-size: 11px; opacity: 0.8;">${lastActive}</td>
                     <td style="padding: 15px 24px; text-align: right;">
-                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.id}', '${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
+                        <button class="btn-secondary" style="padding: 6px; border: none; margin-right: 8px;" onclick="Admin.showCreateModal('user', '${u.id}')"><i data-lucide="edit-2" style="width: 16px; color: var(--admin-accent);"></i></button>
+                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="event.stopPropagation(); Admin.deleteUser('${u.id}', '${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
                     </td>
                 </tr>
             `;
@@ -345,7 +346,7 @@ window.Admin = {
             if (json.length > 0) {
                 if (confirm(`Attempting to import ${json.length} users. Proceed?`)) {
                     for (const row of json) {
-                        const name = row.Name || row.name || row.Researcher;
+                        const name = row.Name || row.name || row.User || row.Researcher;
                         const mobile = String(row.Mobile || row.mobile || row.Phone).replace(/\s/g, '').replace(/[()-]/g, '');
                         if (name && mobile) {
                             const newUser = {
@@ -415,7 +416,7 @@ window.Admin = {
                 <div class="premium-card" style="border-bottom: 3px solid #3498db;">
                     <p style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Capture Velocity</p>
                     <h2 style="font-size: 32px; margin: 10px 0;">${(this.state.contacts.length / Math.max(1, topUsers.length)).toFixed(1)}</h2>
-                    <p style="font-size: 11px; color: var(--text-secondary);">Leads per Researcher</p>
+                    <p style="font-size: 11px; color: var(--text-secondary);">Contacts per User</p>
                 </div>
                 <div class="premium-card" style="border-bottom: 3px solid #2ecc71;">
                     <p style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Engine Performance</p>
@@ -449,7 +450,7 @@ window.Admin = {
                              onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
                             <div style="font-size: 32px; margin-bottom: 10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));">${['🥇','🥈','🥉','🏅','🎖️'][i] || '👤'}</div>
                             <div style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
-                            <div style="color: var(--admin-accent); font-size: 18px; font-weight: 900; margin-top: 8px;">${count} <span style="font-size: 10px; font-weight: 400; opacity: 0.6; color: var(--text-secondary);">Leads</span></div>
+                            <div style="color: var(--admin-accent); font-size: 18px; font-weight: 900; margin-top: 8px;">${count} <span style="font-size: 10px; font-weight: 400; opacity: 0.6; color: var(--text-secondary);">Contacts</span></div>
                         </div>
                     `).join('')}
                     ${topUsers.length === 0 ? '<p style="opacity: 0.3; width: 100%; text-align: center; padding: 40px;">Waiting for first leads to sync...</p>' : ''}
@@ -506,7 +507,7 @@ window.Admin = {
                 </div>
                 
                 <div style="margin-top: 20px;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Select Provisioned Researchers:</label>
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Select Authorized Users:</label>
                     <div style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border);">
                         ${this.state.users.map(u => `
                             <label style="display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -517,7 +518,7 @@ window.Admin = {
                                 </div>
                             </label>
                         `).join('')}
-                        ${this.state.users.length === 0 ? '<p style="opacity: 0.3; padding: 10px;">No researchers provisioned yet.</p>' : ''}
+                        ${this.state.users.length === 0 ? '<p style="opacity: 0.3; padding: 10px;">No users provisioned yet.</p>' : ''}
                     </div>
                 </div>
 
@@ -534,23 +535,25 @@ window.Admin = {
                 </div>
             `;
         } else {
-            const autoPass = Math.random().toString(36).slice(-6).toUpperCase();
+            const u = targetId ? this.state.users.find(u => u.id === targetId) : null;
+            const autoPass = u ? (u.password || '') : Math.random().toString(36).slice(-6).toUpperCase();
+            
             content.innerHTML = `
-                <h3 style="margin-bottom: 5px;">Add Individual Researcher</h3>
+                <h3 style="margin-bottom: 5px;">${u ? 'Edit User Profile' : 'Add Individual User'}</h3>
                 <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 25px;">Provision a new mobile user with secure access.</p>
                 
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" id="user-name" class="form-input" placeholder="e.g. John Doe">
+                    <input type="text" id="user-name" class="form-input" placeholder="e.g. John Doe" value="${u ? u.name : ''}">
                 </div>
                 
                 <div class="form-group">
-                    <label>Mobile Number</label>
-                    <input type="text" id="user-mobile" class="form-input" placeholder="+91...">
+                    <label>Mobile Number (ID)</label>
+                    <input type="text" id="user-mobile" class="form-input" placeholder="+91..." value="${u ? u.mobile : ''}">
                 </div>
 
                 <div class="form-group">
-                    <label>Login Password (Auto-generated)</label>
+                    <label>Login Password</label>
                     <div style="display: flex; gap: 8px;">
                         <input type="text" id="user-pass" class="form-input" value="${autoPass}" style="font-family: monospace; letter-spacing: 2px; font-weight: 800; color: var(--admin-accent);">
                         <button class="action-btn" onclick="document.getElementById('user-pass').value = Math.random().toString(36).slice(-6).toUpperCase()" title="Regenerate">
@@ -561,7 +564,9 @@ window.Admin = {
 
                 <div style="display: flex; gap: 12px; margin-top: 25px;">
                     <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
-                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveIndividualUser()">Add Researcher</button>
+                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveIndividualUser('${targetId || ''}')">
+                        ${u ? 'Update User' : 'Add User'}
+                    </button>
                 </div>
             `;
             if (window.lucide) lucide.createIcons();
@@ -601,7 +606,7 @@ window.Admin = {
         this.refreshActiveView();
     },
 
-    async saveIndividualUser() {
+    async saveIndividualUser(targetId) {
         const name = document.getElementById('user-name').value;
         const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '').replace(/[()-]/g, '');
         const password = document.getElementById('user-pass').value;
@@ -611,15 +616,15 @@ window.Admin = {
             return;
         }
 
-        const newUser = { 
-            id: 'u_' + Date.now(),
+        const userObj = { 
+            id: targetId || ('u_' + Date.now()),
             name, 
             mobile, 
             password, 
             role: 'user', 
             createdAt: new Date().toISOString() 
         };
-        if (window.Cloud) await window.Cloud.saveUser(newUser);
+        if (window.Cloud) await window.Cloud.saveUser(userObj);
         this.hideCreateModal();
         this.refreshActiveView();
     },
