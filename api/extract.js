@@ -78,9 +78,10 @@ export default async function handler(req) {
             },
             body: JSON.stringify({
                 contents: [{
+                    role: "user",
                     parts: [
                         { text: prompt },
-                        { inline_data: { mime_type: mimeType, data: base64Data } }
+                        { inlineData: { mimeType: mimeType, data: base64Data } }
                     ]
                 }]
             })
