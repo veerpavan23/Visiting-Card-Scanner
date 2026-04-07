@@ -536,7 +536,10 @@ window.Admin = {
     },
 
     logout() {
-        if (confirm('Logout?')) { localStorage.removeItem('bizconnex_user'); window.location.href = 'index.html'; }
+        if (confirm('Are you sure you want to log out?')) {
+            localStorage.removeItem('bizconnex_user');
+            window.location.href = '/'; 
+        }
     }
 };
 

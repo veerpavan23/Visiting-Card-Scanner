@@ -96,6 +96,43 @@ const App = {
         this.renderScreen(screenName);
     },
 
+    // --- Modal System ---
+    showModal(title, fields, onSave, saveText = 'Save', cancelText = 'Cancel') {
+        const overlay = document.createElement('div');
+        overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
+        overlay.innerHTML = `
+            <div class="biz-modal animate__animated animate__zoomIn">
+                <h2>${title}</h2>
+                <div class="modal-body">
+                    ${fields.map(f => `
+                        <div class="form-group">
+                            <label style="margin-bottom: 8px; display: block; font-size: 13px;">${f.label}</label>
+                            ${f.type === 'textarea' ? 
+                                `<textarea id="modal-${f.id}" class="form-input" style="height: 100px;" placeholder="${f.placeholder || ''}"></textarea>` :
+                                `<input type="${f.type}" id="modal-${f.id}" class="form-input" placeholder="${f.placeholder || ''}">`
+                            }
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="biz-modal-actions">
+                    <button class="btn-secondary" id="modal-cancel-btn" style="flex: 1;">${cancelText}</button>
+                    <button class="btn-primary" id="modal-save-btn" style="flex: 1;">${saveText}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('modal-cancel-btn').onclick = () => overlay.remove();
+        document.getElementById('modal-save-btn').onclick = () => {
+            const data = {};
+            fields.forEach(f => {
+                data[f.id] = document.getElementById(`modal-${f.id}`).value;
+            });
+            onSave(data);
+            overlay.remove();
+        };
+    },
+
     isLiveEventActive() {
         if (this.state.isAdmin) return true;
         if (!this.state.activeEvent) return false;
@@ -578,10 +615,16 @@ const App = {
     },
 
     logout() {
-        if (confirm('Are you sure you want to log out?')) {
-            localStorage.clear(); // Wipe all for security
-            window.location.reload();
-        }
+        this.showModal(
+            'Confirm Logout',
+            [],
+            () => {
+                localStorage.clear();
+                window.location.href = window.location.origin;
+            },
+            'Log Out',
+            'Cancel'
+        );
     },
 
     // --- Background Engine ---
@@ -604,6 +647,9 @@ const App = {
         this.state.uploadQueue.unshift(queueItem);
         this.saveQueue();
         this.navigateTo('home');
+        
+        // Start processing immediately
+        setTimeout(() => this.processQueue(), 100);
     },
 
     async processQueue() {
