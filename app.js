@@ -165,6 +165,16 @@ const App = {
         }
 
         container.innerHTML = html;
+
+        // --- GLOBAL PROCESSING BAR ---
+        const processingCount = this.state.uploadQueue.filter(q => q.status === 'Processing' || q.status === 'Uploaded').length;
+        if (processingCount > 0 && name !== 'splash') {
+            const bar = document.createElement('div');
+            bar.className = 'global-processing-bar';
+            bar.innerHTML = `<div class="loader-spinner-mini"></div> Extracting ${processingCount} Card${processingCount > 1 ? 's' : ''}...`;
+            container.prepend(bar);
+        }
+
         if (name === 'crop') {
             setTimeout(() => this.initCropper(), 50);
         }
@@ -664,12 +674,16 @@ const App = {
         console.log('App: Engine Picking up item:', next.id);
         this.state.isProcessing = true;
         next.status = 'Processing';
+        next.startTime = Date.now(); // Start Telemetry
         this.saveQueue();
-        if (this.state.currentScreen === 'home') this.renderScreen('home');
+        this.renderScreen(this.state.currentScreen); 
 
         try {
-            console.log('App: Sending to Vertex AI...');
+            console.log('App: Sending to Vertex AI... [Target: <3s]');
             const data = await this.extractWithAI(next.image);
+            
+            const duration = (Date.now() - next.startTime) / 1000;
+            console.log(`App: AI Extraction Complete in ${duration.toFixed(2)}s`);
             if (data && data.name) {
                 console.log('App: AI Extraction Successful:', data.name);
                 const contact = { 
