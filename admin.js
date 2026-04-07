@@ -254,6 +254,7 @@ window.Admin = {
                         <tr>
                             <th style="padding: 15px 24px;">Researcher Name</th>
                             <th style="padding: 15px 24px;">Mobile Number (ID)</th>
+                            <th style="padding: 15px 24px;">Login Password</th>
                             <th style="padding: 15px 24px;">Created</th>
                             <th style="padding: 15px 24px; text-align: right;">Actions</th>
                         </tr>
@@ -278,6 +279,7 @@ window.Admin = {
             <tr style="border-top: 1px solid var(--glass-border);">
                 <td style="padding: 15px 24px;"><b>${u.name}</b></td>
                 <td style="padding: 15px 24px; font-family: monospace; color: var(--admin-accent);">${u.mobile}</td>
+                <td style="padding: 15px 24px;"><code style="background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; font-family: monospace; letter-spacing: 1px;">${u.password || '---'}</code></td>
                 <td style="padding: 15px 24px; opacity: 0.6;">${new Date(u.createdAt).toLocaleDateString()}</td>
                 <td style="padding: 15px 24px; text-align: right;">
                     <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
@@ -306,9 +308,10 @@ window.Admin = {
                         const mobile = String(row.Mobile || row.mobile || row.Phone).replace(/\s/g, '').replace(/[()-]/g, '');
                         if (name && mobile) {
                             const newUser = {
+                                id: 'u_' + Date.now() + Math.random().toString(36).slice(-4),
                                 name,
                                 mobile,
-                                password: mobile,
+                                password: Math.random().toString(36).slice(-6).toUpperCase(),
                                 role: 'user',
                                 createdAt: new Date().toISOString()
                             };
