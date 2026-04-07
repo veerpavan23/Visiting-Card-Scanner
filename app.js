@@ -211,11 +211,11 @@ const App = {
                     <form id="login-form" onsubmit="App.handleLogin(event)" class="premium-card" style="background: transparent; border: none; padding: 0; box-shadow: none;">
                         <div class="premium-card">
                             <div class="form-group">
-                                <label>Mobile Number</label>
+                                <label>Mobile Number (ID)</label>
                                 <input type="tel" id="login-mobile" class="form-input" placeholder="e.g. 9876543210" required>
                             </div>
                             <div class="form-group">
-                                <label>Password</label>
+                                <label>Login Password</label>
                                 <input type="password" id="login-pass" class="form-input" placeholder="••••••••" required>
                             </div>
                         </div>
@@ -509,9 +509,9 @@ const App = {
                             <div class="form-group"><label>Phone</label><input type="text" id="field-phone" class="form-input"></div>
                         </div>
                         <div class="form-group"><label>Email</label><input type="text" id="field-email" class="form-input"></div>
-                        <div class="form-group"><label>Notes (Lead Context)</label><textarea id="field-notes" class="form-input" style="height: 120px;"></textarea></div>
+                        <div class="form-group"><label>Notes (Context)</label><textarea id="field-notes" class="form-input" style="height: 120px;"></textarea></div>
                     </div>
-                    <div class="sticky-footer"><button class="btn-primary" style="width: 100%;" onclick="App.saveContact()">Save Lead</button></div>
+                    <div class="sticky-footer"><button class="btn-primary" style="width: 100%;" onclick="App.saveContact()">Save Contact</button></div>
                 </div>
             `;
         },
@@ -557,8 +557,8 @@ const App = {
             return `
                 <div class="screen contacts-screen">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
-                        <h2 style="font-size: 20px; font-family: 'Outfit';">Captured Leads</h2>
-                        <p style="color: var(--text-secondary); font-size: 11px;">Viewing leads for: ${event ? event.name : 'All Events'}</p>
+                        <h2 style="font-size: 20px; font-family: 'Outfit';">Captured Contacts</h2>
+                        <p style="color: var(--text-secondary); font-size: 11px;">Viewing contacts for: ${event ? event.name : 'All Events'}</p>
                     </header>
                     <div class="screen-content" style="padding: 20px;">
                         <div class="form-group" style="margin-bottom: 20px;">
@@ -568,7 +568,7 @@ const App = {
                             </div>
                         </div>
                         <div id="contacts-full-list">
-                            ${contacts.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No leads captured yet.</div>' : contacts.map(c => this.renderContactItem(c)).join('')}
+                            ${contacts.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No contacts captured yet.</div>' : contacts.map(c => this.renderContactItem(c)).join('')}
                         </div>
                     </div>
                 </div>
@@ -598,7 +598,10 @@ const App = {
         const mobileEl = document.getElementById('login-mobile');
         const passEl = document.getElementById('login-pass');
         
-        if (!mobileEl || !passEl) return;
+        if (!mobileEl || !passEl) {
+            console.error('App: Login elements not found');
+            return;
+        }
         
         const mobile = mobileEl.value.trim();
         const pass = passEl.value.trim();
@@ -613,13 +616,23 @@ const App = {
             return;
         }
 
+        // Wait check if users are still loading from Cloud
+        if (this.state.users.length === 0) {
+            console.warn('App: Users list empty, trying refresh...');
+            this.syncCloud(); 
+            // Fallback to local storage if available
+            this.state.users = JSON.parse(localStorage.getItem('bizconnex_users') || '[]');
+        }
+
         const user = this.state.users.find(u => u.mobile === mobile && (u.password === pass || u.mobile === pass));
         if (user) {
+            console.log('App: Login Success for', user.name);
             this.state.currentUser = user;
             this.state.isAdmin = false;
             localStorage.setItem('bizconnex_user', JSON.stringify(user));
             this.navigateTo('home');
         } else {
+            console.error('App: Login Failed for', mobile);
             alert('Invalid Credentials. Access is restricted to authorized users.');
         }
     },
@@ -1220,7 +1233,7 @@ END:VCARD`;
     exportToExcel() {
         const data = this.state.contacts.map(c => ({ 'Name': c.name, 'Company': c.company, 'Phone': c.phone, 'Email': c.email, 'Event': c.eventName, 'Notes': c.notes }));
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Leads"); XLSX.writeFile(wb, `Bizconnex_Leads_${Date.now()}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, "Contacts"); XLSX.writeFile(wb, `Bizconnex_Contacts_${Date.now()}.xlsx`);
     },
 
     injectDebugUI() {

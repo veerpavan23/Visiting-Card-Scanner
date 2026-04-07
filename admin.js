@@ -96,7 +96,7 @@ window.Admin = {
 
             <div class="stat-grid">
                 <div class="premium-card">
-                    <p style="font-size: 13px; color: var(--text-secondary);">Total Leads Captured</p>
+                    <p style="font-size: 13px; color: var(--text-secondary);">Total Contacts Captured</p>
                     <h2 style="font-size: 36px; color: var(--admin-accent);">${this.state.contacts.length.toLocaleString()}</h2>
                 </div>
                 <div class="premium-card">
@@ -104,14 +104,14 @@ window.Admin = {
                     <h2 style="font-size: 36px; color: #2ecc71;">${activeEvents}</h2>
                 </div>
                 <div class="premium-card">
-                    <p style="font-size: 13px; color: var(--text-secondary);">Provisioned Researchers</p>
+                    <p style="font-size: 13px; color: var(--text-secondary);">Provisioned Users</p>
                     <h2 style="font-size: 36px; color: #f1c40f;">${this.state.users.length}</h2>
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
                 <div class="chart-container">
-                    <h4 style="margin-bottom: 20px;">Recent Lead Activity (7 Days)</h4>
+                    <h4 style="margin-bottom: 20px;">Recent Contact Activity (7 Days)</h4>
                     <canvas id="dashboard-chart" style="max-height: 250px;"></canvas>
                 </div>
                 <div class="premium-card">
@@ -135,9 +135,9 @@ window.Admin = {
                 <div class="premium-card">
                     <h4 style="margin-bottom: 20px;">Quick Links</h4>
                     <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('events')">Create New Event</button>
-                    <button class="btn-secondary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('users')">Provision Researchers</button>
+                    <button class="btn-secondary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('users')">Provision Users</button>
                     <button class="btn-secondary" style="width: 100%; border-color: #2ecc71; color: #2ecc71;" onclick="Admin.exportLeads()">
-                        <i data-lucide="download"></i> Export All Leads (XLSX)
+                        <i data-lucide="download"></i> Export All Contacts (XLSX)
                     </button>
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
                         <p style="font-size: 11px; color: #2ecc71; display: flex; align-items: center; gap: 8px;">
@@ -187,7 +187,7 @@ window.Admin = {
             data: {
                 labels: days.map(d => d.split('/')[0] + '/' + d.split('/')[1]),
                 datasets: [{
-                    label: 'Leads Captured',
+                    label: 'Contacts Captured',
                     data: dataArr,
                     borderColor: '#3498db',
                     backgroundColor: 'rgba(52, 152, 219, 0.1)',
@@ -271,7 +271,7 @@ window.Admin = {
             <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
                 <div>
                     <h1 style="font-size: 32px; font-family: 'Outfit';">User Provisioning</h1>
-                    <p style="color: var(--text-secondary);">Manage researcher access and bulk upload personnel lists.</p>
+                    <p style="color: var(--text-secondary);">Manage user access and bulk upload personnel lists.</p>
                 </div>
                 <div style="display: flex; gap: 12px;">
                     <button class="btn-secondary" onclick="document.getElementById('csv-upload').click()">
@@ -288,7 +288,7 @@ window.Admin = {
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead style="background: rgba(255,255,255,0.05);">
                         <tr>
-                            <th style="padding: 15px 24px;">Researcher Name</th>
+                            <th style="padding: 15px 24px;">User Name</th>
                             <th style="padding: 15px 24px;">Mobile Number (ID)</th>
                             <th style="padding: 15px 24px;">Login Password</th>
                             <th style="padding: 15px 24px;">Last Active</th>
@@ -322,7 +322,7 @@ window.Admin = {
                     <td style="padding: 15px 24px;"><code style="background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; font-family: monospace; letter-spacing: 1px;">${u.password || '---'}</code></td>
                     <td style="padding: 15px 24px; font-size: 11px; opacity: 0.8;">${lastActive}</td>
                     <td style="padding: 15px 24px; text-align: right;">
-                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
+                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.id}', '${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
                     </td>
                 </tr>
             `;
@@ -624,15 +624,15 @@ window.Admin = {
         this.refreshActiveView();
     },
 
-    async deleteEvent(id) { if (confirm('Delete event?')) { if (window.Cloud) await window.Cloud.deleteEvent(id); this.refreshActiveView(); } },
+    async deleteEvent(id) { if (confirm('Delete event?')) { if (window.Cloud) { await window.Cloud.deleteEvent(id); this.refreshActiveView(); } } },
     
-    async deleteUser(mobile) { 
+    async deleteUser(userId, mobile) { 
         if (confirm('Remove user? This will also revoke their access from all events immediately.')) { 
             if (window.Cloud) {
                 // 1. Delete user record
-                await window.Cloud.deleteUser(mobile); 
+                await window.Cloud.deleteUser(userId); 
                 
-                // 2. Scrub from all events
+                // 2. Scrub mobile from all events
                 for (const ev of this.state.events) {
                     if (ev.numbers && ev.numbers.includes(mobile)) {
                         const updatedNums = ev.numbers.filter(n => n !== mobile);

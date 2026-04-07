@@ -106,6 +106,29 @@ const Cloud = {
             console.error("Cloud: RTDB Fetch User Error", e);
             return [];
         }
+    },
+
+    // --- Deletion Sync ---
+    async deleteEvent(id) {
+        console.log('Cloud RTDB: Removing Event...', id);
+        try {
+            await remove(ref(db, 'events_v1/' + id));
+            return true;
+        } catch (e) {
+            console.error("Cloud: RTDB Delete Event Error", e);
+            throw e;
+        }
+    },
+
+    async deleteUser(id) {
+        console.log('Cloud RTDB: Removing User...', id);
+        try {
+            await remove(ref(db, 'users_v1/' + id));
+            return true;
+        } catch (e) {
+            console.error("Cloud: RTDB Delete User Error", e);
+            throw e;
+        }
     }
 };
 
