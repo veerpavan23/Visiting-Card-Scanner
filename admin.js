@@ -209,8 +209,18 @@ window.Admin = {
                             <span style="background: ${color}22; color: ${color}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800;">${status}</span>
                             <h3 style="margin-top: 10px; font-size: 20px;">${e.name}</h3>
                             <p style="font-size: 13px; opacity: 0.6; margin-top: 5px;">${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                            <p style="font-size: 12px; color: var(--admin-accent); margin-top: 8px;">
+                                <i data-lucide="users" style="width: 14px; vertical-align: middle;"></i> ${e.numbers ? e.numbers.length : 0} Authorized Users
+                            </p>
                         </div>
-                        <button class="btn-secondary" style="color: #ff4d4d;" onclick="Admin.deleteEvent('${e.id}')"><i data-lucide="trash-2"></i></button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-secondary" onclick="Admin.showCreateModal('event', '${e.id}')">
+                                <i data-lucide="edit-3"></i> Edit Access
+                            </button>
+                            <button class="btn-secondary" style="color: #ff4d4d;" onclick="Admin.deleteEvent('${e.id}')">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -293,7 +303,7 @@ window.Admin = {
                 if (confirm(`Attempting to import ${json.length} users. Proceed?`)) {
                     for (const row of json) {
                         const name = row.Name || row.name || row.Researcher;
-                        const mobile = String(row.Mobile || row.mobile || row.Phone).replace(/\s/g, '');
+                        const mobile = String(row.Mobile || row.mobile || row.Phone).replace(/\s/g, '').replace(/[()-]/g, '');
                         if (name && mobile) {
                             const newUser = {
                                 name,
@@ -397,23 +407,47 @@ window.Admin = {
     },
 
     // --- Modal Logic ---
-    showCreateModal(type) {
+    showCreateModal(type, targetId = null) {
         const modal = document.getElementById('create-modal');
         const content = document.getElementById('modal-content');
         modal.style.display = 'flex';
 
         if (type === 'event') {
+            const e = targetId ? this.state.events.find(ev => ev.id === targetId) : null;
             content.innerHTML = `
-                <h3 style="margin-bottom: 25px;">Create New Event</h3>
-                <div class="form-group"><label>Event Name</label><input type="text" id="event-name" class="form-input" placeholder="e.g. GISEC 2026"></div>
+                <h3 style="margin-bottom: 25px;">${e ? 'Edit Access:' : 'Create New Event'} ${e ? e.name : ''}</h3>
+                <div class="form-group"><label>Event Name</label><input type="text" id="event-name" class="form-input" value="${e ? e.name : ''}"></div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group"><label>Start</label><input type="datetime-local" id="event-start" class="form-input"></div>
-                    <div class="form-group"><label>End</label><input type="datetime-local" id="event-end" class="form-input"></div>
+                    <div class="form-group"><label>Start</label><input type="datetime-local" id="event-start" class="form-input" value="${e ? e.start : ''}"></div>
+                    <div class="form-group"><label>End</label><input type="datetime-local" id="event-end" class="form-input" value="${e ? e.end : ''}"></div>
                 </div>
-                <div class="form-group"><label>Authorized Mobiles (Comma separated)</label><textarea id="event-numbers" class="form-input" style="height: 100px;"></textarea></div>
+                
+                <div style="margin-top: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Select Provisioned Researchers:</label>
+                    <div style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                        ${this.state.users.map(u => `
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <input type="checkbox" name="user-access" value="${u.mobile}" ${e && e.numbers && e.numbers.includes(u.mobile) ? 'checked' : ''}>
+                                <div style="font-size: 13px;">
+                                    <div>${u.name}</div>
+                                    <div style="font-size: 11px; opacity: 0.5;">${u.mobile}</div>
+                                </div>
+                            </label>
+                        `).join('')}
+                        ${this.state.users.length === 0 ? '<p style="opacity: 0.3; padding: 10px;">No researchers provisioned yet.</p>' : ''}
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Bulk Paste Mobiles (Optional - Comma separated)</label>
+                    <textarea id="event-numbers-bulk" class="form-input" style="height: 60px;" placeholder="+91..."></textarea>
+                </div>
+
                 <div style="display: flex; gap: 12px; margin-top: 25px;">
                     <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
-                    <button class="btn-primary" style="flex: 2;" onclick="Admin.createEvent()">Save Event</button>
+                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveEvent('${targetId || ''}')">
+                        ${e ? 'Update Event' : 'Create Event'}
+                    </button>
                 </div>
             `;
         } else {
@@ -433,21 +467,38 @@ window.Admin = {
         document.getElementById('create-modal').style.display = 'none';
     },
 
-    async createEvent() {
+    async saveEvent(targetId) {
         const name = document.getElementById('event-name').value;
         const start = document.getElementById('event-start').value;
         const end = document.getElementById('event-end').value;
-        const nums = document.getElementById('event-numbers').value.split(',').map(n => n.trim()).filter(n => n);
+        
+        // 1. Get checked users
+        const checkedNums = Array.from(document.querySelectorAll('input[name="user-access"]:checked')).map(el => el.value);
+        
+        // 2. Get bulk paste users
+        const bulkNums = document.getElementById('event-numbers-bulk').value.split(',').map(n => n.trim()).filter(n => n);
+        
+        // 3. Unique Merge
+        const finalNumbers = [...new Set([...checkedNums, ...bulkNums])];
 
-        const newEvent = { id: 'evt_' + Date.now(), name, start, end, numbers: nums, createdAt: new Date().toISOString(), scanCount: 0 };
-        if (window.Cloud) await window.Cloud.saveEvent(newEvent);
+        const eventData = { 
+            id: targetId || ('evt_' + Date.now()), 
+            name, 
+            start, 
+            end, 
+            numbers: finalNumbers, 
+            createdAt: new Date().toISOString(), 
+            scanCount: 0 
+        };
+
+        if (window.Cloud) await window.Cloud.saveEvent(eventData);
         this.hideCreateModal();
         this.refreshActiveView();
     },
 
     async saveIndividualUser() {
         const name = document.getElementById('user-name').value;
-        const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '');
+        const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '').replace(/[()-]/g, '');
         if (!name || !mobile) return;
 
         const newUser = { name, mobile, role: 'user', createdAt: new Date().toISOString() };
@@ -457,7 +508,24 @@ window.Admin = {
     },
 
     async deleteEvent(id) { if (confirm('Delete event?')) { if (window.Cloud) await window.Cloud.deleteEvent(id); this.refreshActiveView(); } },
-    async deleteUser(mobile) { if (confirm('Remove user?')) { if (window.Cloud) await window.Cloud.deleteUser(mobile); this.refreshActiveView(); } },
+    
+    async deleteUser(mobile) { 
+        if (confirm('Remove user? This will also revoke their access from all events immediately.')) { 
+            if (window.Cloud) {
+                // 1. Delete user record
+                await window.Cloud.deleteUser(mobile); 
+                
+                // 2. Scrub from all events
+                for (const ev of this.state.events) {
+                    if (ev.numbers && ev.numbers.includes(mobile)) {
+                        const updatedNums = ev.numbers.filter(n => n !== mobile);
+                        await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
+                    }
+                }
+            }
+            this.refreshActiveView(); 
+        } 
+    },
 
     logout() {
         if (confirm('Logout?')) { localStorage.removeItem('bizconnex_user'); window.location.href = 'index.html'; }
