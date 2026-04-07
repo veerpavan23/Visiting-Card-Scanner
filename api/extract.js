@@ -68,7 +68,7 @@ export default async function handler(req) {
         const token = await getAccessToken();
         const prompt = `Extract card details. Return ONLY raw JSON with these keys: name, company, designation, phone, email, website, address. JSON ARRAY: [{"FirstName"...}]`;
         const project = "schranders";
-        const endpoint = `https://us-east1-aiplatform.googleapis.com/v1/projects/${project}/locations/us-east1/publishers/google/models/gemini-2.0-flash:generateContent`;
+        const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${project}/locations/us-central1/publishers/google/models/gemini-1.5-flash:generateContent`;
 
         const resp = await fetch(endpoint, {
             method: "POST",
