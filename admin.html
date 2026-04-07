@@ -6,12 +6,14 @@
     <title>Admin Dashboard | Liquid Premium Scanner</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="styles.css?v=12.15">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="styles.css?v=14.15">
     <style>
         :root {
             --admin-accent: #3498db;
         }
-        body { background: #050a14; overflow-x: hidden; }
+        body { background: #050a14; overflow-x: hidden; color: #fff; }
         .admin-sidebar {
             width: 260px;
             height: 100vh;
@@ -22,12 +24,36 @@
             left: 0;
             top: 0;
             padding: 30px;
+            z-index: 100;
         }
         .admin-main {
             margin-left: 260px;
             padding: 40px;
             min-height: 100vh;
         }
+        .sidebar-nav { display: flex; flex-direction: column; gap: 10px; }
+        .nav-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 12px 18px;
+            border-radius: 12px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .nav-btn.active { 
+            background: rgba(52, 152, 219, 0.1); 
+            border-color: rgba(52, 152, 219, 0.3); 
+            color: var(--admin-accent); 
+        }
+        .nav-btn i { width: 20px; }
+
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -43,17 +69,7 @@
             transition: all 0.3s ease;
         }
         .event-card:hover { border-color: var(--accent); transform: translateY(-3px); }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .status-active { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
-        .status-expired { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
-        .status-pending { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
-
+        
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -66,10 +82,19 @@
         }
         .modal-card {
             background: #0a192f;
-            width: 500px;
+            width: 550px;
             border-radius: 24px;
             padding: 30px;
             border: 1px solid var(--glass-border);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .chart-container {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
         }
     </style>
 </head>
@@ -79,79 +104,43 @@
             <i data-lucide="shield-check" class="text-accent" style="vertical-align: middle; margin-right: 8px;"></i>
             Liquid<span class="text-accent">Admin</span>
         </h2>
-        <nav style="display: flex; flex-direction: column; gap: 15px;">
-            <button class="btn-secondary" style="text-align: left; background: rgba(255,255,255,0.05);"><i data-lucide="layout-dashboard"></i> Dashboard</button>
-            <button class="btn-secondary" style="text-align: left;"><i data-lucide="calendar"></i> Events</button>
-            <button class="btn-secondary" style="text-align: left;"><i data-lucide="users"></i> User Access</button>
-            <button class="btn-secondary" style="text-align: left;"><i data-lucide="bar-chart-3"></i> Analytics</button>
-            <button class="btn-secondary" style="text-align: left; margin-top: 20px; color: #ff4d4d; border-color: rgba(255, 77, 77, 0.2);" onclick="Admin.logout()"><i data-lucide="log-out"></i> Logout</button>
+        <nav class="sidebar-nav">
+            <button id="nav-dashboard" class="nav-btn active" onclick="Admin.navigateTo('dashboard')">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </button>
+            <button id="nav-events" class="nav-btn" onclick="Admin.navigateTo('events')">
+                <i data-lucide="calendar"></i> Events
+            </button>
+            <button id="nav-users" class="nav-btn" onclick="Admin.navigateTo('users')">
+                <i data-lucide="users"></i> User Access
+            </button>
+            <button id="nav-analytics" class="nav-btn" onclick="Admin.navigateTo('analytics')">
+                <i data-lucide="line-chart"></i> Analytics
+            </button>
+            
+            <button class="nav-btn" style="margin-top: 40px; color: #ff4d4d;" onclick="Admin.logout()">
+                <i data-lucide="log-out"></i> Logout
+            </button>
         </nav>
     </aside>
 
-    <main class="admin-main">
-        <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
-            <div>
-                <h1 style="font-size: 32px;">Event Overview</h1>
-                <p style="color: var(--text-secondary);">Manage authorization windows and scan limits.</p>
-            </div>
-            <button class="btn-primary" onclick="Admin.showCreateModal()">
-                <i data-lucide="plus"></i> Create New Event
-            </button>
-        </header>
-
-        <div class="stat-grid">
-            <div class="premium-card">
-                <p style="font-size: 13px; color: var(--text-secondary);">Total Scans</p>
-                <h2 id="total-scans">12,450</h2>
-            </div>
-            <div class="premium-card">
-                <p style="font-size: 13px; color: var(--text-secondary);">Active Events</p>
-                <h2 id="active-events">3</h2>
-            </div>
-            <div class="premium-card">
-                <p style="font-size: 13px; color: var(--text-secondary);">Authorized Users</p>
-                <h2 id="auth-users">640</h2>
-            </div>
-        </div>
-
-        <div id="events-list">
-            <!-- Event cards injected here -->
+    <main class="admin-main" id="admin-content-root">
+        <!-- Content dynamically injected here -->
+        <div style="height: 100%; display: flex; align-items: center; justify-content: center; opacity: 0.5;">
+            <p>Initializing Control Panel...</p>
         </div>
     </main>
 
-    <!-- Create Event Modal -->
+    <!-- Global Modals (Shared across tabs) -->
     <div id="create-modal" class="modal-overlay">
-        <div class="modal-card">
-            <h3 style="margin-bottom: 20px;">Create New Event</h3>
-            <div class="form-group">
-                <label>Event Name</label>
-                <input type="text" id="event-name" class="form-input" placeholder="e.g. GCC Tech Summit 2026">
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="form-group">
-                    <label>Start Date</label>
-                    <input type="datetime-local" id="event-start" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label>End Date</label>
-                    <input type="datetime-local" id="event-end" class="form-input">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Mobile Number Access (Comma separated)</label>
-                <textarea id="event-numbers" class="form-input" style="height: 100px;" placeholder="+919876543210, +919000111222..."></textarea>
-            </div>
-            <div style="display: flex; gap: 15px; margin-top: 25px;">
-                <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
-                <button class="btn-primary" style="flex: 2;" onclick="Admin.createEvent()">Save Event</button>
-            </div>
+        <div class="modal-card" id="modal-content">
+            <!-- Modal content injected here -->
         </div>
     </div>
 
-    <script type="module" src="firebase-config.js?v=12.15"></script>
-    <script src="admin.js?v=12.15"></script>
+    <script type="module" src="firebase-config.js?v=14.15"></script>
+    <script src="admin.js?v=14.15"></script>
     <script>
-        lucide.createIcons();
         window.addEventListener('load', () => {
             if (window.Admin) Admin.init();
         });

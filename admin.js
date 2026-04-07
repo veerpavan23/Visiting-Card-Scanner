@@ -2,266 +2,467 @@ window.Admin = {
     // --- State ---
     state: {
         isInitialized: false,
-        cloudStatus: 'Connecting...',
+        currentTab: 'dashboard',
         events: JSON.parse(localStorage.getItem('admin_events') || '[]'),
-        stats: {
-            scans: 12450,
-            active: 0,
-            users: 640
-        }
+        users: JSON.parse(localStorage.getItem('admin_users') || '[]'),
+        contacts: [],
+        charts: {}
     },
 
     // --- Initialization ---
     async init() {
-        if (!document.getElementById('events-list')) return;
-        
-        // Wait for Cloud to wake up
+        // Wait for Cloud
         let attempts = 0;
         while (!window.Cloud && attempts < 10) {
             attempts++;
             await new Promise(r => setTimeout(r, 500));
         }
 
-        // --- PHASE 1: Immediate Local Render (Instant UI) ---
-        this.renderEvents();
-        this.updateStats();
-
-        // --- PHASE 2: Background Cloud Bridge (Non-Blocking) ---
-        this.refreshData(); // Run in parallel
-        
-        // --- PHASE 3: Real-time Live Listener (Immediate Registration) ---
+        // --- Real-time Listeners ---
         if (window.FirebaseDB && window.db) {
             const { ref, onValue } = window.FirebaseDB;
+            
+            // Events Listener
             onValue(ref(window.db, 'events_v1'), snapshot => {
-                const data = snapshot.val();
-                if (data) {
-                    this.state.events = Object.values(data).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    this.renderEvents();
-                    this.updateStats();
+                if (snapshot.exists()) {
+                    this.state.events = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
                     localStorage.setItem('admin_events', JSON.stringify(this.state.events));
+                    if (this.state.currentTab === 'events' || this.state.currentTab === 'dashboard') this.refreshActiveView();
+                }
+            });
+
+            // Users Listener
+            onValue(ref(window.db, 'users_v1'), snapshot => {
+                if (snapshot.exists()) {
+                    this.state.users = Object.values(snapshot.val());
+                    localStorage.setItem('admin_users', JSON.stringify(this.state.users));
+                    if (this.state.currentTab === 'users') this.refreshActiveView();
+                }
+            });
+
+            // Contacts Listener (for Analytics)
+            onValue(ref(window.db, 'contacts_v1'), snapshot => {
+                if (snapshot.exists()) {
+                    this.state.contacts = Object.values(snapshot.val());
+                    if (this.state.currentTab === 'analytics' || this.state.currentTab === 'dashboard') this.refreshActiveView();
                 }
             });
         }
+
+        this.navigateTo('dashboard');
+    },
+
+    // --- Navigation Core ---
+    navigateTo(tab) {
+        this.state.currentTab = tab;
         
-        try { if (window.lucide) lucide.createIcons(); } catch (e) { console.warn('Lucide failed in Admin:', e); }
-    },
+        // Update Sidebar UI
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.id === `nav-${tab}`);
+        });
 
-    async refreshData() {
-        const localData = JSON.parse(localStorage.getItem('admin_events') || '[]');
-        try {
-            if (window.Cloud) {
-                const cloudEvents = await window.Cloud.getEvents();
-                // --- THE SAFETY MERGE ---
-                // If cloud has data, use it. If not, don't wipe the local memory.
-                if (cloudEvents && cloudEvents.length > 0) {
-                    this.state.events = cloudEvents;
-                    localStorage.setItem('admin_events', JSON.stringify(this.state.events));
-                } else {
-                    this.state.events = localData;
-                }
-            } else {
-                this.state.events = localData;
-            }
-        } catch (e) {
-            console.error('Admin: Cloud fetch failed', e);
-            this.state.events = localData;
+        const root = document.getElementById('admin-content-root');
+        root.innerHTML = '<div style="padding: 40px; text-align: center; opacity: 0.5;">Loading...</div>';
+
+        // Kill old charts to prevent memory leaks
+        Object.values(this.state.charts).forEach(c => c.destroy());
+        this.state.charts = {};
+
+        switch(tab) {
+            case 'dashboard': this.renderDashboard(); break;
+            case 'events': this.renderEvents(); break;
+            case 'users': this.renderUsers(); break;
+            case 'analytics': this.renderAnalytics(); break;
         }
-        this.renderEvents();
-        this.updateStats();
+
+        try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     },
 
-    updateStats() {
+    refreshActiveView() {
+        this.navigateTo(this.state.currentTab);
+    },
+
+    // --- VIEW: Dashboard ---
+    renderDashboard() {
+        const root = document.getElementById('admin-content-root');
         const now = new Date();
-        const activeCount = this.state.events.filter(e => {
+        const activeEvents = this.state.events.filter(e => now >= new Date(e.start) && now <= new Date(e.end)).length;
+        
+        root.innerHTML = `
+            <header style="margin-bottom: 40px;">
+                <h1 style="font-size: 32px; font-family: 'Outfit';">System Snapshot</h1>
+                <p style="color: var(--text-secondary);">Real-time metrics across your enterprise network.</p>
+            </header>
+
+            <div class="stat-grid">
+                <div class="premium-card">
+                    <p style="font-size: 13px; color: var(--text-secondary);">Total Leads Captured</p>
+                    <h2 style="font-size: 36px; color: var(--admin-accent);">${this.state.contacts.length.toLocaleString()}</h2>
+                </div>
+                <div class="premium-card">
+                    <p style="font-size: 13px; color: var(--text-secondary);">Active Events Today</p>
+                    <h2 style="font-size: 36px; color: #2ecc71;">${activeEvents}</h2>
+                </div>
+                <div class="premium-card">
+                    <p style="font-size: 13px; color: var(--text-secondary);">Provisioned Researchers</p>
+                    <h2 style="font-size: 36px; color: #f1c40f;">${this.state.users.length}</h2>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+                <div class="chart-container">
+                    <h4 style="margin-bottom: 20px;">Recent Lead Activity</h4>
+                    <canvas id="dashboard-chart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="premium-card">
+                    <h4 style="margin-bottom: 20px;">Quick Links</h4>
+                    <button class="btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="Admin.navigateTo('events')">Create New Event</button>
+                    <button class="btn-secondary" style="width: 100%;" onclick="Admin.navigateTo('users')">Invite Researchers</button>
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
+                        <p style="font-size: 11px; color: #2ecc71; display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 8px; height: 8px; background: #2ecc71; border-radius: 50%; display: inline-block;"></span>
+                            Cloud Sync Active
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.initDashboardChart();
+    },
+
+    initDashboardChart() {
+        const ctx = document.getElementById('dashboard-chart');
+        if (!ctx) return;
+
+        // Group contacts by last 7 days
+        const days = Array.from({length: 7}, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return d.toLocaleDateString();
+        });
+
+        const dataArr = days.map(day => {
+            return this.state.contacts.filter(c => new Date(c.timestamp).toLocaleDateString() === day).length;
+        });
+
+        this.state.charts.dash = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: days.map(d => d.split('/')[0] + '/' + d.split('/')[1]),
+                datasets: [{
+                    label: 'Leads Captured',
+                    data: dataArr,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+            }
+        });
+    },
+
+    // --- VIEW: Events ---
+    renderEvents() {
+        const root = document.getElementById('admin-content-root');
+        root.innerHTML = `
+            <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
+                <div>
+                    <h1 style="font-size: 32px; font-family: 'Outfit';">Event Management</h1>
+                    <p style="color: var(--text-secondary);">Define live scanning windows and authorized user subsets.</p>
+                </div>
+                <button class="btn-primary" onclick="Admin.showCreateModal('event')">
+                    <i data-lucide="plus"></i> Create New Event
+                </button>
+            </header>
+            <div id="events-list">
+                <!-- Cards injected here -->
+            </div>
+        `;
+        this.populateEvents();
+    },
+
+    populateEvents() {
+        const list = document.getElementById('events-list');
+        if (!this.state.events.length) {
+            list.innerHTML = `<div style="text-align: center; padding: 60px; opacity: 0.3;">No events found.</div>`;
+            return;
+        }
+
+        const now = new Date();
+        list.innerHTML = this.state.events.map(e => {
             const start = new Date(e.start);
             const end = new Date(e.end);
-            return now >= start && now <= end;
-        }).length;
+            let status = 'Upcoming', color = '#f1c40f';
+            if (now >= start && now <= end) { status = 'Live', color = '#2ecc71'; }
+            else if (now > end) { status = 'Expired', color = '#e74c3c'; }
 
-        const el1 = document.getElementById('active-events');
-        const el2 = document.getElementById('total-scans');
-        const el3 = document.getElementById('auth-users');
-        if (el1) el1.textContent = activeCount;
-        if (el2) el2.textContent = this.state.stats.scans.toLocaleString();
-        if (el3) el3.textContent = this.state.stats.users.toLocaleString();
+            return `
+                <div class="event-card" style="border-left: 4px solid ${color};">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <span style="background: ${color}22; color: ${color}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800;">${status}</span>
+                            <h3 style="margin-top: 10px; font-size: 20px;">${e.name}</h3>
+                            <p style="font-size: 13px; opacity: 0.6; margin-top: 5px;">${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+                        </div>
+                        <button class="btn-secondary" style="color: #ff4d4d;" onclick="Admin.deleteEvent('${e.id}')"><i data-lucide="trash-2"></i></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        if (window.lucide) lucide.createIcons();
     },
 
-    // --- Modal Management ---
-    showCreateModal() {
-        document.getElementById('create-modal').style.display = 'flex';
+    // --- VIEW: Users ---
+    renderUsers() {
+        const root = document.getElementById('admin-content-root');
+        root.innerHTML = `
+            <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
+                <div>
+                    <h1 style="font-size: 32px; font-family: 'Outfit';">User Provisioning</h1>
+                    <p style="color: var(--text-secondary);">Manage researcher access and bulk upload personnel lists.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-secondary" onclick="document.getElementById('csv-upload').click()">
+                        <i data-lucide="upload"></i> Import CSV/Excel
+                    </button>
+                    <input type="file" id="csv-upload" style="display: none;" accept=".csv,.xlsx" onchange="Admin.handleBulkUpload(event)">
+                    <button class="btn-primary" onclick="Admin.showCreateModal('user')">
+                        <i data-lucide="user-plus"></i> Add Individual
+                    </button>
+                </div>
+            </header>
+
+            <div class="premium-card" style="padding: 0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background: rgba(255,255,255,0.05);">
+                        <tr>
+                            <th style="padding: 15px 24px;">Researcher Name</th>
+                            <th style="padding: 15px 24px;">Mobile Number (ID)</th>
+                            <th style="padding: 15px 24px;">Created</th>
+                            <th style="padding: 15px 24px; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list">
+                        <!-- Users injected here -->
+                    </tbody>
+                </table>
+            </div>
+        `;
+        this.populateUsers();
+    },
+
+    populateUsers() {
+        const list = document.getElementById('users-list');
+        if (!this.state.users.length) {
+            list.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 40px; opacity: 0.3;">No researchers registered.</td></tr>`;
+            return;
+        }
+
+        list.innerHTML = this.state.users.map(u => `
+            <tr style="border-top: 1px solid var(--glass-border);">
+                <td style="padding: 15px 24px;"><b>${u.name}</b></td>
+                <td style="padding: 15px 24px; font-family: monospace; color: var(--admin-accent);">${u.mobile}</td>
+                <td style="padding: 15px 24px; opacity: 0.6;">${new Date(u.createdAt).toLocaleDateString()}</td>
+                <td style="padding: 15px 24px; text-align: right;">
+                    <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
+                </td>
+            </tr>
+        `).join('');
+        if (window.lucide) lucide.createIcons();
+    },
+
+    // --- Bulk Import Logic ---
+    async handleBulkUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+
+            if (json.length > 0) {
+                if (confirm(`Attempting to import ${json.length} users. Proceed?`)) {
+                    for (const row of json) {
+                        const name = row.Name || row.name || row.Researcher;
+                        const mobile = String(row.Mobile || row.mobile || row.Phone).replace(/\s/g, '');
+                        if (name && mobile) {
+                            const newUser = {
+                                name,
+                                mobile,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                            };
+                            if (window.Cloud) await window.Cloud.saveUser(newUser);
+                        }
+                    }
+                    alert('Bulk import complete!');
+                    this.refreshActiveView();
+                }
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    },
+
+    // --- VIEW: Analytics ---
+    renderAnalytics() {
+        const root = document.getElementById('admin-content-root');
+        
+        // Insights logic
+        const eventCounts = {};
+        const userCounts = {};
+        this.state.contacts.forEach(c => {
+            eventCounts[c.eventName || 'General'] = (eventCounts[c.eventName || 'General'] || 0) + 1;
+            userCounts[c.researcher || 'Unknown'] = (userCounts[c.researcher || 'Unknown'] || 0) + 1;
+        });
+
+        const topEvents = Object.entries(eventCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        const topUsers = Object.entries(userCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+        root.innerHTML = `
+            <header style="margin-bottom: 40px;">
+                <h1 style="font-size: 32px; font-family: 'Outfit';">Valueable Insights</h1>
+                <p style="color: var(--text-secondary);">Enterprise performance metrics and leaderboard.</p>
+            </header>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div class="chart-container">
+                    <h4 style="margin-bottom: 20px;">Lead Capture Velocity</h4>
+                    <canvas id="velocity-chart"></canvas>
+                </div>
+                <div class="premium-card">
+                    <h4 style="margin-bottom: 15px;">Top Performing Events</h4>
+                    ${topEvents.map(([name, count]) => `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <span>${name}</span>
+                            <span style="font-weight: 800; color: var(--admin-accent);">${count} Leads</span>
+                        </div>
+                    `).join('')}
+                    ${topEvents.length === 0 ? '<p style="opacity: 0.3;">No data yet.</p>' : ''}
+                </div>
+            </div>
+
+            <div class="premium-card" style="margin-top: 30px;">
+                <h4 style="margin-bottom: 20px;">Researcher Leaderboard</h4>
+                <div style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px;">
+                    ${topUsers.map(([name, count], i) => `
+                        <div style="min-width: 150px; text-align: center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 16px;">
+                            <div style="font-size: 24px; margin-bottom: 10px;">${['🥇','🥈','🥉','🏅','🎖️'][i] || '👤'}</div>
+                            <div style="font-weight: 600;">${name}</div>
+                            <div style="color: var(--admin-accent); font-size: 13px; font-weight: 800; margin-top: 5px;">${count} Leads</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        this.initVelocityChart();
+    },
+
+    initVelocityChart() {
+        const ctx = document.getElementById('velocity-chart');
+        if (!ctx) return;
+
+        // Last 12 hours
+        const hours = Array.from({length: 12}, (_, i) => {
+            const h = new Date();
+            h.setHours(h.getHours() - (11 - i));
+            return h.getHours() + ':00';
+        });
+
+        const dataArr = hours.map(h => {
+            return this.state.contacts.filter(c => new Date(c.timestamp).getHours() + ':00' === h).length;
+        });
+
+        this.state.charts.velocity = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: hours,
+                datasets: [{ label: 'Capture Velocity', data: dataArr, backgroundColor: '#3498db' }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } } }
+            }
+        });
+    },
+
+    // --- Modal Logic ---
+    showCreateModal(type) {
+        const modal = document.getElementById('create-modal');
+        const content = document.getElementById('modal-content');
+        modal.style.display = 'flex';
+
+        if (type === 'event') {
+            content.innerHTML = `
+                <h3 style="margin-bottom: 25px;">Create New Event</h3>
+                <div class="form-group"><label>Event Name</label><input type="text" id="event-name" class="form-input" placeholder="e.g. GISEC 2026"></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group"><label>Start</label><input type="datetime-local" id="event-start" class="form-input"></div>
+                    <div class="form-group"><label>End</label><input type="datetime-local" id="event-end" class="form-input"></div>
+                </div>
+                <div class="form-group"><label>Authorized Mobiles (Comma separated)</label><textarea id="event-numbers" class="form-input" style="height: 100px;"></textarea></div>
+                <div style="display: flex; gap: 12px; margin-top: 25px;">
+                    <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
+                    <button class="btn-primary" style="flex: 2;" onclick="Admin.createEvent()">Save Event</button>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <h3 style="margin-bottom: 25px;">Add Individual Researcher</h3>
+                <div class="form-group"><label>Full Name</label><input type="text" id="user-name" class="form-input" placeholder="e.g. John Doe"></div>
+                <div class="form-group"><label>Mobile Number</label><input type="text" id="user-mobile" class="form-input" placeholder="+91..."></div>
+                <div style="display: flex; gap: 12px; margin-top: 25px;">
+                    <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
+                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveIndividualUser()">Add User</button>
+                </div>
+            `;
+        }
     },
 
     hideCreateModal() {
         document.getElementById('create-modal').style.display = 'none';
-        this.clearForm();
     },
 
-    clearForm() {
-        document.getElementById('event-name').value = '';
-        document.getElementById('event-start').value = '';
-        document.getElementById('event-end').value = '';
-        document.getElementById('event-numbers').value = '';
-    },
-
-    // --- Event CRUD ---
     async createEvent() {
         const name = document.getElementById('event-name').value;
         const start = document.getElementById('event-start').value;
         const end = document.getElementById('event-end').value;
-        const rawNumbers = document.getElementById('event-numbers').value;
+        const nums = document.getElementById('event-numbers').value.split(',').map(n => n.trim()).filter(n => n);
 
-        if (!name || !start || !end || !rawNumbers) {
-            alert('Please fill all fields.');
-            return;
-        }
-
-        const numbers = rawNumbers.split(',')
-            .map(n => n.trim())
-            .filter(n => n.length > 5);
-
-        const newEvent = {
-            id: 'evt_' + Date.now(),
-            name,
-            start,
-            end,
-            numbers,
-            createdAt: new Date().toISOString(),
-            scanCount: 0
-        };
-
-        // --- PHASE 1: LOCK TO LOCAL STORAGE IMMEDIATELY ---
-        this.state.events.unshift(newEvent);
-        localStorage.setItem('admin_events', JSON.stringify(this.state.events));
-        this.renderEvents();
-
-        // --- PHASE 2: ATTEMPT CLOUD SYNC ---
-        const btn = document.querySelector('#create-modal .btn-primary');
-        if (window.Cloud) {
-            try {
-                if (btn) {
-                    btn.textContent = 'Syncing...';
-                    btn.disabled = true;
-                }
-                await window.Cloud.saveEvent(newEvent);
-                console.log('✅ Cloud Sync Successful');
-            } catch (e) {
-                console.error('Cloud save failed:', e);
-                alert('⚠️ CLOUD ERROR: Your Firebase Security Rules might be blocking the save. Please check "Database Rules" in Firebase Console. \n\nEvent is saved LOCALLY only.');
-            } finally {
-                if (btn) {
-                    btn.textContent = 'Create Event';
-                    btn.disabled = false;
-                }
-            }
-        }
-
+        const newEvent = { id: 'evt_' + Date.now(), name, start, end, numbers: nums, createdAt: new Date().toISOString(), scanCount: 0 };
+        if (window.Cloud) await window.Cloud.saveEvent(newEvent);
         this.hideCreateModal();
-        await this.refreshData();
+        this.refreshActiveView();
     },
 
-    async deleteEvent(id) {
-        if (confirm('Delete this event? This will revoke access for all users.')) {
-            // Remove from cloud (Hard-Wired)
-            if (window.FirebaseDB && window.db) {
-                try {
-                    const { ref, remove } = window.FirebaseDB;
-                    await remove(ref(window.db, 'events_v1/' + id));
-                    console.log('✅ Cloud Delete Successful');
-                } catch (e) {
-                    console.error('Cloud delete failed:', e);
-                }
-            }
-            // Update local memory
-            this.state.events = this.state.events.filter(e => e.id !== id);
-            localStorage.setItem('admin_events', JSON.stringify(this.state.events));
-            
-            // Immediate Render (Don't wait for cloud refresh)
-            this.renderEvents();
-            this.updateStats();
-        }
+    async saveIndividualUser() {
+        const name = document.getElementById('user-name').value;
+        const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '');
+        if (!name || !mobile) return;
+
+        const newUser = { name, mobile, role: 'user', createdAt: new Date().toISOString() };
+        if (window.Cloud) await window.Cloud.saveUser(newUser);
+        this.hideCreateModal();
+        this.refreshActiveView();
     },
+
+    async deleteEvent(id) { if (confirm('Delete event?')) { if (window.Cloud) await window.Cloud.deleteEvent(id); this.refreshActiveView(); } },
+    async deleteUser(mobile) { if (confirm('Remove user?')) { if (window.Cloud) await window.Cloud.deleteUser(mobile); this.refreshActiveView(); } },
 
     logout() {
-        if (confirm('Log out from Admin Dashboard?')) {
-            localStorage.removeItem('bizconnex_user');
-            window.location.href = 'index.html';
-        }
-    },
-
-    // --- UI Rendering ---
-    renderEvents() {
-        const list = document.getElementById('events-list');
-        if (!list) return;
-
-        if (!this.state.events || this.state.events.length === 0) {
-            list.innerHTML = `
-                <div style="text-align: center; padding: 60px; opacity: 0.3; border: 1px dashed var(--glass-border); border-radius: 20px;">
-                    <i data-lucide="calendar" style="width: 48px; height: 48px; margin-bottom: 10px;"></i>
-                    <p>No events created yet. Start by clicking "Create New Event".</p>
-                </div>
-            `;
-            if (window.lucide) lucide.createIcons();
-            return;
-        }
-
-        const now = new Date();
-        let htmlContent = '';
-        
-        for (const e of this.state.events) {
-            try {
-                const start = new Date(e.start || Date.now());
-                const end = new Date(e.end || Date.now());
-                
-                let statusText = 'Upcoming';
-                let statusColor = '#f1c40f'; // Yellow
-                
-                if (now >= start && now <= end) {
-                    statusText = 'Live';
-                    statusColor = '#2ecc71'; // Green
-                } else if (now > end) {
-                    statusText = 'Expired';
-                    statusColor = '#e74c3c'; // Red
-                }
-
-                htmlContent += `
-                    <div class="event-card" style="background: rgba(255,255,255,0.07); border-left: 4px solid ${statusColor}; margin-bottom: 20px; padding: 20px; border-radius: 12px; color: white !important;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                            <div>
-                                <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700;">${statusText}</span>
-                                <h3 style="margin-top: 10px; font-size: 20px; color: #ffffff !important; font-family: 'Outfit';">${e.name || 'Untitled Event'}</h3>
-                            </div>
-                            <button class="btn-secondary" style="padding: 8px; border: none; background: transparent; cursor: pointer;" onclick="Admin.deleteEvent('${e.id}')">
-                                <i data-lucide="trash-2" style="width: 18px; color: #ff4d4d;"></i>
-                            </button>
-                        </div>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; font-size: 13px; color: #e2e8f0;">
-                            <div>
-                                <p style="color: #94a3b8; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">Duration</p>
-                                <p>${isNaN(start) ? 'TBD' : start.toLocaleDateString()} - ${isNaN(end) ? 'TBD' : end.toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                                <p style="color: #94a3b8; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">Authorized</p>
-                                <p style="color: #60a5fa;"><i data-lucide="users" style="width: 12px; vertical-align: middle;"></i> ${e.numbers ? e.numbers.length : 0} Access</p>
-                            </div>
-                            <div>
-                                <p style="color: #94a3b8; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">Scans</p>
-                                <p style="color: #f87171;"><i data-lucide="zap" style="width: 12px; vertical-align: middle;"></i> ${e.scanCount || 0} Total</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } catch (cardError) {
-                console.error("Renderer: Card skip due to error", cardError, e);
-            }
-        }
-        
-        list.innerHTML = htmlContent;
-        
-        if (window.lucide) {
-            setTimeout(() => lucide.createIcons(), 50);
-        }
+        if (confirm('Logout?')) { localStorage.removeItem('bizconnex_user'); window.location.href = 'index.html'; }
     }
 };
+
 
 // Admin.init() is called explicitly from admin.html — not auto-run here.
