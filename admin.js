@@ -452,15 +452,37 @@ window.Admin = {
                 </div>
             `;
         } else {
+            const autoPass = Math.random().toString(36).slice(-6).toUpperCase();
             content.innerHTML = `
-                <h3 style="margin-bottom: 25px;">Add Individual Researcher</h3>
-                <div class="form-group"><label>Full Name</label><input type="text" id="user-name" class="form-input" placeholder="e.g. John Doe"></div>
-                <div class="form-group"><label>Mobile Number</label><input type="text" id="user-mobile" class="form-input" placeholder="+91..."></div>
+                <h3 style="margin-bottom: 5px;">Add Individual Researcher</h3>
+                <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 25px;">Provision a new mobile user with secure access.</p>
+                
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="user-name" class="form-input" placeholder="e.g. John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label>Mobile Number</label>
+                    <input type="text" id="user-mobile" class="form-input" placeholder="+91...">
+                </div>
+
+                <div class="form-group">
+                    <label>Login Password (Auto-generated)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="user-pass" class="form-input" value="${autoPass}" style="font-family: monospace; letter-spacing: 2px; font-weight: 800; color: var(--admin-accent);">
+                        <button class="action-btn" onclick="document.getElementById('user-pass').value = Math.random().toString(36).slice(-6).toUpperCase()" title="Regenerate">
+                            <i data-lucide="refresh-cw" style="width: 16px;"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 12px; margin-top: 25px;">
                     <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
-                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveIndividualUser()">Add User</button>
+                    <button class="btn-primary" style="flex: 2;" onclick="Admin.saveIndividualUser()">Add Researcher</button>
                 </div>
             `;
+            if (window.lucide) lucide.createIcons();
         }
     },
 
@@ -500,13 +522,18 @@ window.Admin = {
     async saveIndividualUser() {
         const name = document.getElementById('user-name').value;
         const mobile = document.getElementById('user-mobile').value.replace(/\s/g, '').replace(/[()-]/g, '');
-        if (!name || !mobile) return;
+        const password = document.getElementById('user-pass').value;
+        
+        if (!name || !mobile || !password) {
+            alert('Please fill all fields');
+            return;
+        }
 
-        // Default password is the mobile number for newly provisioned users
         const newUser = { 
+            id: 'u_' + Date.now(),
             name, 
             mobile, 
-            password: mobile, 
+            password, 
             role: 'user', 
             createdAt: new Date().toISOString() 
         };
