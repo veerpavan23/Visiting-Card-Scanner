@@ -59,6 +59,11 @@ const App = {
         this.syncCloud();
     },
 
+    normalizeMobile(mobile) {
+        if (!mobile) return '';
+        return mobile.replace(/\D/g, '');
+    },
+
     bindEvents() {
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -455,7 +460,10 @@ const App = {
             if (this.state.isAdmin) {
                 userEvents = this.state.events;
             } else if (this.state.currentUser && this.state.currentUser.mobile) {
-                userEvents = this.state.events.filter(e => e.numbers && e.numbers.includes(this.state.currentUser.mobile));
+                const normUser = this.normalizeMobile(this.state.currentUser.mobile);
+                userEvents = this.state.events.filter(e => {
+                    return e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
+                });
             }
             
             const now = new Date();
@@ -631,7 +639,11 @@ const App = {
             }
         }
 
-        const user = this.state.users.find(u => u.mobile === mobile && (u.password === pass || u.mobile === pass));
+        const normalizedInput = this.normalizeMobile(mobile);
+        const user = this.state.users.find(u => {
+            const normalizedUserMobile = this.normalizeMobile(u.mobile);
+            return normalizedUserMobile === normalizedInput && (u.password === pass || u.mobile === pass || normalizedUserMobile === pass);
+        });
         if (user) {
             console.log('App: Login Success for', user.name);
             this.state.currentUser = user;
@@ -1320,6 +1332,11 @@ END:VCARD`;
                 }
             });
         }
+    },
+
+    normalizeMobile(mobile) {
+        if (!mobile) return '';
+        return mobile.replace(/\D/g, '');
     }
 };
 

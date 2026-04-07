@@ -329,7 +329,7 @@ window.Admin = {
                     <td style="padding: 15px 24px; font-size: 11px; opacity: 0.8;">${lastActive}</td>
                     <td style="padding: 15px 24px; text-align: right;">
                         <button class="btn-secondary" style="padding: 6px; border: none; margin-right: 8px;" onclick="Admin.showCreateModal('user', '${u.id}')"><i data-lucide="edit-2" style="width: 16px; color: var(--admin-accent);"></i></button>
-                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="event.stopPropagation(); Admin.deleteUser('${u.id}', '${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
+                        <button class="btn-secondary" style="padding: 6px; border: none;" onclick="Admin.deleteUser('${u.id}', '${u.mobile}')"><i data-lucide="trash-2" style="width: 16px; color: #ff4d4d;"></i></button>
                     </td>
                 </tr>
             `;
@@ -595,7 +595,7 @@ window.Admin = {
         const bulkNums = document.getElementById('event-numbers-bulk').value.split(',').map(n => n.trim()).filter(n => n);
         
         // 3. Unique Merge
-        const finalNumbers = [...new Set([...checkedNums, ...bulkNums])];
+        const finalNumbers = [...new Set([...checkedNums, ...bulkNums])].map(n => Admin.normalizeMobile(n));
 
         const eventData = { 
             id: targetId || ('evt_' + Date.now()), 
@@ -608,6 +608,7 @@ window.Admin = {
         };
 
         if (window.Cloud) await window.Cloud.saveEvent(eventData);
+        alert('Event configuration saved successfully.');
         this.hideCreateModal();
         this.refreshActiveView();
     },
@@ -635,23 +636,42 @@ window.Admin = {
         this.refreshActiveView();
     },
 
-    async deleteEvent(id) { if (confirm('Delete event?')) { if (window.Cloud) { await window.Cloud.deleteEvent(id); this.refreshActiveView(); } } },
+    async deleteEvent(id) { 
+        if (confirm('Delete event? Are you sure you want to remove this trade show?')) { 
+            if (window.Cloud) { 
+                try {
+                    await window.Cloud.deleteEvent(id); 
+                    alert('Event deleted successfully.');
+                    this.refreshActiveView(); 
+                } catch (e) {
+                    console.error('Admin: Delete Event Error', e);
+                    alert('Error: Could not delete event. Please check cloud connection.');
+                }
+            } 
+        } 
+    },
     
     async deleteUser(userId, mobile) { 
         if (confirm('Remove user? This will also revoke their access from all events immediately.')) { 
             if (window.Cloud) {
-                // 1. Delete user record
-                await window.Cloud.deleteUser(userId); 
-                
-                // 2. Scrub mobile from all events
-                for (const ev of this.state.events) {
-                    if (ev.numbers && ev.numbers.includes(mobile)) {
-                        const updatedNums = ev.numbers.filter(n => n !== mobile);
-                        await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
+                try {
+                    // 1. Delete user record
+                    await window.Cloud.deleteUser(userId); 
+                    
+                    // 2. Scrub mobile from all events
+                    for (const ev of this.state.events) {
+                        if (ev.numbers && ev.numbers.some(n => n.includes(mobile) || mobile.includes(n))) {
+                            const updatedNums = ev.numbers.filter(n => !n.includes(mobile) && !mobile.includes(n));
+                            await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
+                        }
                     }
+                    alert('User removed and access revoked successfully.');
+                    this.refreshActiveView();
+                } catch (e) {
+                    console.error('Admin: Delete User Error', e);
+                    alert('Error: Could not delete user. Access might be partially revoked.');
                 }
             }
-            this.refreshActiveView(); 
         } 
     },
 
