@@ -449,3 +449,95 @@ h1, h2, h3, .brand {
     border-radius: 4px;
     white-space: nowrap;
 }
+
+/* Admin Responsive Shell */
+.admin-shell {
+    display: flex;
+    height: 100vh;
+    background: var(--bg-primary);
+}
+
+.admin-sidebar {
+    width: 250px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+}
+
+.admin-sidebar-item {
+    padding: 15px 20px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+    border-left: 3px solid transparent;
+}
+.admin-sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+.admin-sidebar-item.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(239, 152, 19, 0.1);
+}
+
+.admin-main {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+
+/* Desktop App Container Override for Admin */
+@media (min-width: 768px) {
+    .app-container.is-admin {
+        max-width: 1200px;
+        border-radius: 12px;
+        margin-top: 20px;
+        height: min(100vh - 40px, 900px);
+    }
+}
+
+/* Mobile adjustments (Sidebar becomes bottom nav) */
+@media (max-width: 767px) {
+    .admin-shell {
+        flex-direction: column;
+    }
+    .admin-sidebar {
+        width: 100%;
+        height: 70px;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid var(--glass-border);
+        padding: 0;
+        justify-content: space-around;
+        order: 2; /* Move to bottom */
+        position: sticky;
+        bottom: 0;
+        background: var(--bg-secondary);
+        z-index: 100;
+    }
+    .admin-sidebar-item {
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        padding: 5px;
+        font-size: 10px;
+        border-left: none;
+        border-top: 3px solid transparent;
+        flex: 1;
+        text-align: center;
+    }
+    .admin-sidebar-item.active {
+        border-top-color: var(--accent);
+        background: none;
+    }
+    .admin-main {
+        order: 1;
+    }
+}

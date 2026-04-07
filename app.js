@@ -77,11 +77,32 @@ const App = {
     navigateTo(screenName) {
         if (this.state.currentScreen === screenName && screenName !== 'home') return;
         
+        // --- Enterprise Scanner Guard ---
+        if (screenName === 'capture') {
+            const isLive = this.isLiveEventActive();
+            if (!isLive) {
+                this.showToast('Scanner locked. Select a Live event.', 'error');
+                this.navigateTo('home');
+                return;
+            }
+            this.startCameraFlow();
+            return;
+        }
+
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-screen') === screenName);
         });
 
         this.renderScreen(screenName);
+    },
+
+    isLiveEventActive() {
+        if (this.state.isAdmin) return true;
+        if (!this.state.activeEvent) return false;
+        const now = new Date();
+        const start = new Date(this.state.activeEvent.start);
+        const end = new Date(this.state.activeEvent.end);
+        return now >= start && now <= end;
     },
 
     renderScreen(name) {
@@ -173,19 +194,24 @@ const App = {
             const event = this.state.activeEvent;
             const contacts = this.state.contacts.filter(c => !event || c.eventId === event.id);
 
+            const now = new Date();
+            let eventStatus = 'Upcoming';
+            let isLive = false;
+            if (event) {
+                const eStart = new Date(event.start);
+                const eEnd = new Date(event.end);
+                if (now >= eStart && now <= eEnd) { eventStatus = 'Live'; isLive = true; }
+                else if (now > eEnd) { eventStatus = 'Expired'; }
+            }
+
             return `
                 <div class="screen home-screen">
                     <header style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
                         <div>
                             <h1 style="font-size: 24px; font-family: 'Outfit';">Biz<span class="text-accent">connex</span></h1>
-                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;">${this.state.currentUser?.mobile || 'Dashboard'}</p>
+                            <p style="color: var(--text-secondary); font-size: 11px;">Networking Intelligence</p>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            ${this.state.isAdmin ? `<button class="btn-secondary" style="padding: 8px 12px; font-size: 11px;" onclick="App.navigateTo('adminDashboard')"><i data-lucide="settings" style="width: 14px;"></i> Admin</button>` : ''}
-                            <button class="logout-btn" style="background: var(--bg-tertiary); padding: 10px; border-radius: 12px; border: 1px solid var(--glass-border); cursor: pointer;" onclick="App.logout(event)">
-                                <i data-lucide="log-out" style="width: 18px;"></i>
-                            </button>
-                        </div>
+                        <button onclick="App.logout(event)" style="background: none; border: none; color: #ff4d4d; font-size: 20px;"><i data-lucide="power"></i></button>
                     </header>
 
                     <div class="screen-content" style="padding: 24px;">
@@ -198,31 +224,41 @@ const App = {
                             </div>
                         ` : ''}
 
-                        <div class="premium-card" style="padding: 15px; margin-bottom: 25px; border-left: 4px solid ${event ? '#2ecc71' : '#f1c40f'};" onclick="App.navigateTo('eventSelect')">
+                        <div class="premium-card" style="padding: 15px; margin-bottom: 25px; border-left: 4px solid ${isLive ? '#2ecc71' : '#f1c40f'};" onclick="App.navigateTo('eventSelect')">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="flex: 1;">
-                                    <p style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Active Trade Show <i data-lucide="chevron-down" style="width: 10px;"></i></p>
-                                    <h3 style="font-size: 16px; margin-top: 2px;">${event ? event.name : 'Quick Scan Mode'}</h3>
-                                    <p style="font-size: 10px; opacity: 0.6; margin-top: 2px;">${event ? 'Dubai World Trade Centre' : 'Tap to Switch to a Specific Event'}</p>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <p style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Active Trade Show <i data-lucide="chevron-down" style="width: 10px;"></i></p>
+                                        ${event ? `<span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: ${isLive ? 'rgba(46,204,113,0.2)' : 'rgba(231,76,60,0.2)'}; color: ${isLive ? '#2ecc71' : '#e74c3c'}; font-weight: bold;">${eventStatus}</span>` : ''}
+                                    </div>
+                                    <h3 style="font-size: 16px; margin-top: 5px;">${event ? event.name : 'Select Event to Scan'}</h3>
+                                    <p style="font-size: 10px; opacity: 0.6; margin-top: 4px;">${event ? (isNaN(new Date(event.start)) ? 'TBD' : new Date(event.start).toLocaleDateString() + ' - ' + new Date(event.end).toLocaleDateString()) : 'Tap to Select'}</p>
                                 </div>
                                 <div style="text-align: right;">
-                                    <p style="font-size: 10px; color: var(--text-muted);">Points</p>
-                                    <p style="color: var(--accent); font-weight: 700;">${this.state.contacts.length * 10}</p>
+                                    <p style="font-size: 10px; color: var(--text-muted);">Scans</p>
+                                    <p style="color: var(--accent); font-weight: 700; font-size: 18px;">${contacts.length}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div style="display: flex; gap: 12px; margin-bottom: 25px;">
-                            <button class="scanner-btn" style="flex: 1; border-color: ${event ? 'rgba(46, 204, 113, 0.3)' : 'rgba(241, 196, 15, 0.3)'};" onclick="App.startCameraFlow()">
-                                <div class="scanner-icon" style="background: rgba(160, 29, 34, 0.1); color: var(--primary);"><i data-lucide="camera"></i></div>
-                                <span>Camera</span>
-                            </button>
-                            <button class="scanner-btn" style="flex: 1;" onclick="document.getElementById('gallery-input').click()">
-                                <div class="scanner-icon" style="background: rgba(46, 204, 113, 0.1); color: #2ecc71;"><i data-lucide="image"></i></div>
-                                <span>Gallery</span>
-                            </button>
-                            <input type="file" id="gallery-input" style="display: none;" accept="image/*" onchange="App.handleGalleryUpload(event)">
-                        </div>
+                        ${isLive ? `
+                            <div style="display: flex; gap: 12px; margin-bottom: 25px;">
+                                <button class="scanner-btn" style="flex: 1; border-color: rgba(46, 204, 113, 0.3);" onclick="App.startCameraFlow()">
+                                    <div class="scanner-icon" style="background: rgba(160, 29, 34, 0.1); color: var(--primary);"><i data-lucide="camera"></i></div>
+                                    <span>Camera</span>
+                                </button>
+                                <button class="scanner-btn" style="flex: 1;" onclick="document.getElementById('gallery-input').click()">
+                                    <div class="scanner-icon" style="background: rgba(46, 204, 113, 0.1); color: #2ecc71;"><i data-lucide="image"></i></div>
+                                    <span>Gallery</span>
+                                </button>
+                                <input type="file" id="gallery-input" style="display: none;" accept="image/*" onchange="App.handleGalleryUpload(event)">
+                            </div>
+                        ` : `
+                            <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 25px;">
+                                <i data-lucide="lock" style="width: 24px; color: var(--text-muted); margin-bottom: 10px;"></i>
+                                <p style="font-size: 12px; color: var(--text-muted);">Scanner is locked.<br>Select a <b>Live</b> event to begin scanning.</p>
+                            </div>
+                        `}
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <h3 style="font-size: 16px; font-family: 'Outfit';">Recent Leads</h3>
@@ -240,9 +276,39 @@ const App = {
                 </div>
             `;
         },
+        renderAdminShell(content, activeTab) {
+            const container = document.querySelector('.app-container');
+            if (container) container.classList.add('is-admin');
+            
+            return `
+                <div class="admin-shell">
+                    <div class="admin-sidebar">
+                        <div class="desktop-only" style="padding: 0 20px 20px 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; text-align: center;">
+                            <h2 style="font-family: 'Outfit'; color: var(--accent);">Control Panel</h2>
+                        </div>
+                        <div class="admin-sidebar-item ${activeTab==='dashboard'? 'active':''}" onclick="App.navigateTo('adminDashboard')">
+                            <i data-lucide="bar-chart-2"></i> <span>Stats</span>
+                        </div>
+                        <div class="admin-sidebar-item ${activeTab==='users'? 'active':''}" onclick="App.navigateTo('userManager')">
+                            <i data-lucide="users"></i> <span>Users</span>
+                        </div>
+                        <div class="admin-sidebar-item ${activeTab==='events'? 'active':''}" onclick="App.navigateTo('eventManager')">
+                            <i data-lucide="calendar"></i> <span>Events</span>
+                        </div>
+                        <div style="flex: 1;"></div>
+                        <div class="admin-sidebar-item" onclick="App.logout()" style="color: var(--danger);">
+                            <i data-lucide="log-out"></i> <span>Logout</span>
+                        </div>
+                    </div>
+                    <div class="admin-main">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        },
 
         adminDashboard() {
-            return `
+            const content = `
                 <div class="screen admin-screen">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="font-size: 22px; font-family: 'Outfit';">Control Panel</h2>
@@ -271,10 +337,11 @@ const App = {
                     </div>
                 </div>
             `;
+            return this.renderAdminShell(content, 'dashboard');
         },
 
         userManager() {
-            return `
+            const content = `
                 <div class="screen-manager">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; gap: 10px; align-items: center;">
@@ -302,10 +369,11 @@ const App = {
                     </div>
                 </div>
             `;
+            return this.renderAdminShell(content, 'users');
         },
 
         eventManager() {
-            return `
+            const content = `
                 <div class="screen-manager">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; gap: 10px; align-items: center;">
@@ -332,62 +400,48 @@ const App = {
                     </div>
                 </div>
             `;
+            return this.renderAdminShell(content, 'events');
         },
 
         eventSelect() {
-            const authorizedEvents = this.state.isAdmin ? this.state.events : this.state.events.filter(e => e.userIds?.includes(this.state.currentUser.id));
+            // Find events assigned to user
+            let userEvents = [];
+            if (this.state.isAdmin) {
+                userEvents = this.state.events;
+            } else if (this.state.currentUser && this.state.currentUser.mobile) {
+                userEvents = this.state.events.filter(e => e.numbers && e.numbers.includes(this.state.currentUser.mobile));
+            }
             
-            return `
-                <div class="screen event-select-screen">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px;">
-                        <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
-                        <h2 style="font-size: 20px; font-family: 'Outfit';">Switch Event</h2>
-                    </header>
-                    <div class="screen-content">
-                        ${authorizedEvents.length === 0 ? '<p style="text-align: center; padding: 20px; opacity: 0.5;">No authorized events found.</p>' : authorizedEvents.map(e => `
-                            <div class="premium-card" style="border-left: 4px solid ${this.state.activeEvent?.id === e.id ? 'var(--accent)' : 'transparent'};" onclick="App.selectEvent('${e.id}')">
-                                <h4>${e.name}</h4>
-                                <p style="font-size: 11px; opacity: 0.6;">Range: ${new Date(e.start).toLocaleDateString()} - ${new Date(e.end).toLocaleDateString()}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        },
+            const now = new Date();
 
-        contacts() {
-            return `
-                <div class="screen contacts-screen">
-                    <header style="padding: 16px 24px;">
-                        <h2 style="font-size: 24px; font-family: 'Outfit';">Lead Repository</h2>
-                        <input type="text" class="form-input" placeholder="Search by name, company..." style="margin-top: 15px;" onkeyup="App.filterContacts(this.value)">
-                    </header>
-                    <div class="screen-content" id="all-contacts-list">
-                        ${this.state.contacts.map(c => this.renderContactItem(c)).join('')}
-                    </div>
-                </div>
-            `;
-        },
-
-        eventSelect() {
-            const userEvents = this.state.events.filter(e => e.userIds?.includes(this.state.currentUser?.id) || this.state.isAdmin);
             return `
                 <div class="screen event-select-screen" style="padding: 30px;">
                     <button class="btn-secondary" style="margin-bottom: 20px;" onclick="App.navigateTo('home')"><i data-lucide="arrow-left"></i> Back</button>
                     <h2 style="font-family: 'Outfit'; margin-bottom: 25px;">Available Events</h2>
                     ${userEvents.length === 0 ? '<p style="opacity: 0.5;">No trade shows assigned to your profile.</p>' : ''}
                     <div style="display: flex; flex-direction: column; gap: 15px;">
-                        ${userEvents.map(e => `
+                        ${userEvents.map(e => {
+                            let statusText = 'Upcoming';
+                            let statusColor = '#f1c40f'; // Yellow
+                            const start = new Date(e.start);
+                            const end = new Date(e.end);
+                            if (now >= start && now <= end) { statusText = 'Live'; statusColor = '#2ecc71'; }
+                            else if (now > end) { statusText = 'Expired'; statusColor = '#e74c3c'; }
+                            
+                            return `
                             <div class="premium-card" onclick="App.selectEvent('${e.id}')" style="${this.state.activeEvent?.id === e.id ? 'border-color: var(--accent);' : ''}">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div>
-                                        <h4>${e.name}</h4>
-                                        <p style="font-size: 11px; opacity: 0.5;">Dubai World Trade Centre</p>
+                                        <h4 style="margin-bottom: 5px;">${e.name}</h4>
+                                        <p style="font-size: 11px; opacity: 0.5;">${isNaN(start) ? 'TBD' : start.toLocaleDateString()}</p>
                                     </div>
-                                    ${this.state.activeEvent?.id === e.id ? '<i data-lucide="check-circle" style="color: var(--accent);"></i>' : ''}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                                        ${this.state.activeEvent?.id === e.id ? '<div style="margin-top: 10px;"><i data-lucide="check-circle" style="color: var(--accent); width: 14px;"></i></div>' : ''}
+                                    </div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 </div>
             `;
@@ -506,12 +560,12 @@ const App = {
             this.state.currentUser = null;
             this.state.activeEvent = null;
             this.state.isAdmin = false;
-            this.navigateTo('login');
+            window.location.reload(); // Force full state reset
         }
     },
 
     // --- Background Engine ---
-    processImage(imageData) {
+    processImage(imageData, userNotes = '') {
         // Safe check for active event - use a fallback 'General Scan' to avoid locking
         const event = this.state.activeEvent || { name: 'General Scan', id: 'gen_' + Date.now().toString(36) };
         
@@ -524,7 +578,7 @@ const App = {
             timestamp: Date.now(),
             eventId: event.id,
             eventName: event.name,
-            notes: '',
+            notes: userNotes,
             data: null
         };
         this.state.uploadQueue.unshift(queueItem);
@@ -548,7 +602,7 @@ const App = {
         if (this.state.currentScreen === 'home') this.renderScreen('home');
 
         try {
-            console.log('App: Sending to Gemini AI...');
+            console.log('App: Sending to Vertex AI...');
             const data = await this.extractWithAI(next.image);
             if (data && data.name) {
                 console.log('App: AI Extraction Successful:', data.name);
@@ -559,10 +613,16 @@ const App = {
                     eventName: next.eventName, 
                     eventId: next.eventId,
                     timestamp: next.timestamp,
-                    notes: ''
+                    notes: next.notes || data.notes || ''
                 };
                 this.state.contacts.unshift(contact);
                 localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+                
+                // Sync to Cloud
+                if (window.Cloud) {
+                    window.Cloud.saveContact(contact).catch(e => console.error('Cloud Sync Failed:', e));
+                }
+
                 next.status = 'Updated';
                 this.showToast(`Lead Extracted: ${data.name}`);
             } else {
@@ -570,7 +630,16 @@ const App = {
             }
         } catch (e) { 
             console.error('App: Queue Critical Error:', e);
-            next.status = 'Failed: ' + (e.message || 'AI Error');
+            if (e.message && e.message.includes('429')) {
+                next.status = 'Waiting for Server Quota...';
+                // Backoff retry logic: wait 3 seconds before marking it uploaded again
+                setTimeout(() => {
+                    const qi = this.state.uploadQueue.find(q => q.id === next.id);
+                    if (qi) { qi.status = 'Uploaded'; this.saveQueue(); }
+                }, 3000);
+            } else {
+                next.status = 'Failed: ' + (e.message || 'AI Error');
+            }
         } finally {
             this.state.isProcessing = false;
             this.saveQueue();
@@ -637,14 +706,25 @@ const App = {
                 <div class="expandable-content" id="expand-${c.id}">
                     <div style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 10px;">
                         <img src="${displayImage}" style="width: 100%; height: 120px; border-radius: 8px; object-fit: contain; background: #111; margin-bottom: 15px;">
+                        
+                        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; font-size: 12px;">
+                            ${c.email ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="mail" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.email}</span></div>` : ''}
+                            ${c.phone ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="phone" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.phone}</span></div>` : ''}
+                            ${c.designation ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="briefcase" style="width: 14px; opacity: 0.5;"></i> <span>${c.designation}</span></div>` : ''}
+                        </div>
+
                         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                             <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('call', '${c.phone}')"><i data-lucide="phone" style="width: 16px;"></i></button>
                             <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('whatsapp', '${c.phone}')"><i data-lucide="message-circle" style="width: 16px;"></i></button>
+                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('email', '${c.email}')"><i data-lucide="mail" style="width: 16px;"></i></button>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <button class="btn-primary" style="flex: 2; padding: 8px; background: #3498db; border-color: #3498db;" onclick="event.stopPropagation(); App.downloadVCF('${c.id}')"><i data-lucide="user-plus" style="width: 16px; margin-right: 5px;"></i> Save to Phone</button>
                             <button class="btn-primary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.editContact('${c.id}')"><i data-lucide="edit" style="width: 16px;"></i></button>
                             <button class="btn-danger" style="flex: 1; padding: 8px; background: rgba(231, 76, 60, 0.1); border-color: #e74c3c33; color: #e74c3c;" onclick="event.stopPropagation(); App.deleteContact('${c.id}')"><i data-lucide="trash-2" style="width: 16px;"></i></button>
                         </div>
                         <p style="font-size: 11px; opacity: 0.5; margin-bottom: 5px;">Lead Notes</p>
-                        <div class="notes-container" style="font-size: 13px; min-height: 40px; overflow-wrap: break-word;">${c.notes || 'Tap Edit to add meeting notes.'}</div>
+                        <div class="notes-container" style="font-size: 13px; min-height: 40px; overflow-wrap: break-word; color: var(--accent); font-style: italic;">${c.notes || 'No added context.'}</div>
                     </div>
                 </div>
             </div>
@@ -693,10 +773,20 @@ const App = {
     },
 
     initCropper() { this.cropper = new Cropper(document.getElementById('crop-image'), { viewMode: 1, autoCropArea: 0.9 }); },
-
     finalizeCrop() {
-        const img = this.cropper.getCroppedCanvas({ maxWidth: 1000 }).toDataURL('image/jpeg', 0.8);
-        this.cropper.destroy(); this.processImage(img);
+        const img = this.cropper.getCroppedCanvas({ maxWidth: 600 }).toDataURL('image/jpeg', 0.6);
+        this.cropper.destroy(); 
+        
+        this.showModal(
+            'Attach Context',
+            [
+                { id: 'notes', type: 'textarea', label: 'Context / Comments (Optional)', placeholder: 'E.g., Wants to schedule a callback next week...' }
+            ],
+            (data) => {
+                this.processImage(img, data.notes);
+            },
+            'Capture Lead'
+        );
     },
 
     async extractWithAI(imageData) {
@@ -752,9 +842,14 @@ const App = {
         };
         if (c) {
             const idx = this.state.contacts.findIndex(x => x.id === c.id);
-            if (idx !== -1) this.state.contacts[idx] = { ...this.state.contacts[idx], ...data };
+            if (idx !== -1) {
+                this.state.contacts[idx] = { ...this.state.contacts[idx], ...data };
+                if (window.Cloud) window.Cloud.saveContact(this.state.contacts[idx]);
+            }
         } else {
-            this.state.contacts.unshift({ ...data, id: 'c_'+Date.now(), timestamp: Date.now(), status: 'Updated' });
+            const newContact = { ...data, id: 'c_'+Date.now(), timestamp: Date.now(), status: 'Updated' };
+            this.state.contacts.unshift(newContact);
+            if (window.Cloud) window.Cloud.saveContact(newContact);
         }
         localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
         this.state.currentContact = null;
@@ -778,7 +873,38 @@ const App = {
         }, 100);
     },
 
-    handleAction(t, v) { if (!v) return; if (t==='call') window.location.href=`tel:${v}`; if (t==='whatsapp') window.open(`https://wa.me/${v.replace(/\D/g,'')}`); },
+    handleAction(t, v) { 
+        if (!v) return; 
+        if (t==='call') window.location.href=`tel:${v}`; 
+        if (t==='whatsapp') window.open(`https://wa.me/${v.replace(/\D/g,'')}`); 
+        if (t==='email') window.location.href=`mailto:${v}`;
+    },
+
+    downloadVCF(id) {
+        const c = this.state.contacts.find(x => x.id === id);
+        if (!c) return;
+        
+        const safeString = (s) => (s || '').replace(/\n/g, '\\n').replace(/,/g, '\\,');
+        
+        const vcfText = `BEGIN:VCARD
+VERSION:3.0
+N:;${safeString(c.name || 'Unknown')};;;
+FN:${safeString(c.name || 'Unknown')}
+ORG:${safeString(c.company)}
+TITLE:${safeString(c.designation)}
+TEL;TYPE=CELL:${safeString(c.phone)}
+EMAIL;TYPE=WORK:${safeString(c.email)}
+NOTE:Captured via Bizconnex Scanner at ${safeString(c.eventName || 'Event')}. Notes: ${safeString(c.notes)}
+END:VCARD`;
+        
+        const blob = new Blob([vcfText], { type: 'text/vcard' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(c.name || 'contact').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.vcf`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
 
     deleteUser(id) {
         if (confirm('Delete user? This cannot be undone.')) {
@@ -892,18 +1018,18 @@ const App = {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     },
 
-    provisionUsers(rawList, targetEventId = null) {
+    async provisionUsers(rawList, targetEventId = null) {
         const numbers = rawList.split(/[\n,]+/).map(n => n.trim().replace(/\s/g, '')).filter(n => n.length >= 8);
         let created = 0, updated = 0;
 
-        numbers.forEach(num => {
+        for (const num of numbers) {
             let user = this.state.users.find(u => u.mobile === num);
             if (user) {
                 if (targetEventId && !user.eventIds.includes(targetEventId)) user.eventIds.push(targetEventId);
                 updated++;
             } else {
                 user = {
-                    id: 'u_' + Date.now() + Math.random(),
+                    id: 'u_' + Date.now() + Math.random().toString(36).substr(2,9),
                     mobile: num,
                     password: this.generatePassword(),
                     isAdmin: false,
@@ -912,7 +1038,10 @@ const App = {
                 this.state.users.push(user);
                 created++;
             }
-        });
+            if (window.Cloud) {
+                try { await window.Cloud.saveUser(user); } catch (e) { console.error('Cloud Sync failed for user'); }
+            }
+        }
 
         localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
         this.showToast(`Sync Complete: ${created} New, ${updated} Assigned`);
@@ -1058,14 +1187,36 @@ const App = {
         }
     },
 
-    syncCloud() {
-        // Mocking event sync for testing
-        if (this.state.events.length === 0) {
-            this.state.events = [
-                { id: 'ev1', name: 'Global Tech Expo 2024', start: '2024-01-01', end: '2025-12-31' },
-                { id: 'ev2', name: 'Bizconnex Summit Riyadh', start: '2024-05-01', end: '2025-12-31' }
-            ];
-            localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+    async syncCloud() {
+        if (window.FirebaseDB && window.db) {
+            const { ref, onValue } = window.FirebaseDB;
+            onValue(ref(window.db, 'events_v1'), snapshot => {
+                if (snapshot.exists()) {
+                    this.state.events = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+                }
+            });
+            onValue(ref(window.db, 'users_v1'), snapshot => {
+                if (snapshot.exists()) {
+                    this.state.users = Object.values(snapshot.val());
+                    localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                }
+            });
+            onValue(ref(window.db, 'contacts_v1'), snapshot => {
+                if (snapshot.exists()) {
+                    const cloudContacts = Object.values(snapshot.val());
+                    // Merge cloud contacts with local (Cloud wins)
+                    const localIds = new Set(this.state.contacts.map(c => c.id));
+                    cloudContacts.forEach(cc => {
+                        const idx = this.state.contacts.findIndex(c => c.id === cc.id);
+                        if (idx !== -1) this.state.contacts[idx] = cc;
+                        else this.state.contacts.unshift(cc);
+                    });
+                    this.state.contacts.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+                    if (this.state.currentScreen === 'home') this.renderScreen('home');
+                }
+            });
         }
     }
 };

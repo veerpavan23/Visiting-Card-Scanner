@@ -79,6 +79,33 @@ const Cloud = {
             console.error("Cloud: RTDB Fetch Contact Error", e);
             return [];
         }
+    },
+
+    // --- Users Sync ---
+    async saveUser(user) {
+        console.log('Cloud RTDB: Syncing User...', user.mobile);
+        try {
+            await set(ref(db, 'users_v1/' + user.id), user);
+            return user;
+        } catch (e) {
+            console.error("Cloud: RTDB Save User Error", e);
+            throw e;
+        }
+    },
+
+    async getUsers() {
+        try {
+            const snapshot = await get(child(ref(db), 'users_v1'));
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                return Object.values(data);
+            } else {
+                return [];
+            }
+        } catch (e) {
+            console.error("Cloud: RTDB Fetch User Error", e);
+            return [];
+        }
     }
 };
 
