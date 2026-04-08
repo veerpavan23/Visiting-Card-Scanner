@@ -564,8 +564,9 @@ const App = {
                         <div class="form-group"><label>Company</label><input type="text" id="field-company" class="form-input"></div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group"><label>Designation</label><input type="text" id="field-designation" class="form-input"></div>
-                            <div class="form-group"><label>Phone</label><input type="text" id="field-phone" class="form-input"></div>
+                            <div class="form-group"><label>Primary Phone</label><input type="text" id="field-phone" class="form-input"></div>
                         </div>
+                        <div class="form-group"><label>Secondary Phone</label><input type="text" id="field-secondaryPhone" class="form-input"></div>
                         <div class="form-group"><label>Email</label><input type="text" id="field-email" class="form-input"></div>
                         <div class="form-group"><label>Notes (Context)</label><textarea id="field-notes" class="form-input" style="height: 120px;"></textarea></div>
                     </div>
@@ -795,6 +796,7 @@ const App = {
                     researcher: this.state.currentUser ? this.state.currentUser.name : 'Unknown',
                     researcherId: this.state.currentUser ? this.state.currentUser.mobile : 'Unknown',
                     timestamp: next.timestamp,
+                    secondaryPhone: data.secondaryPhone || '',
                     notes: next.notes || data.notes || ''
                 };
                 this.state.contacts.unshift(contact);
@@ -891,7 +893,8 @@ const App = {
                         
                         <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; font-size: 12px;">
                             ${c.email ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="mail" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.email}</span></div>` : ''}
-                            ${c.phone ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="phone" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.phone}</span></div>` : ''}
+                            ${c.phone ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="phone" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.phone}</span> <small style="opacity: 0.5;">(Primary)</small></div>` : ''}
+                            ${c.secondaryPhone ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="phone-forwarded" style="width: 14px; opacity: 0.5;"></i> <span style="user-select: all;">${c.secondaryPhone}</span> <small style="opacity: 0.5;">(Secondary)</small></div>` : ''}
                             ${c.designation ? `<div style="display: flex; gap: 10px; align-items: center;"><i data-lucide="briefcase" style="width: 14px; opacity: 0.5;"></i> <span>${c.designation}</span></div>` : ''}
                         </div>
 
@@ -1019,6 +1022,7 @@ const App = {
             company: document.getElementById('field-company').value,
             designation: document.getElementById('field-designation').value,
             phone: document.getElementById('field-phone').value,
+            secondaryPhone: document.getElementById('field-secondaryPhone').value,
             email: document.getElementById('field-email').value,
             notes: document.getElementById('field-notes').value
         };
@@ -1049,6 +1053,7 @@ const App = {
             document.getElementById('field-company').value = c.company || '';
             document.getElementById('field-designation').value = c.designation || '';
             document.getElementById('field-phone').value = c.phone || '';
+            document.getElementById('field-secondaryPhone').value = c.secondaryPhone || '';
             document.getElementById('field-email').value = c.email || '';
             document.getElementById('field-notes').value = c.notes || '';
             document.getElementById('review-image-preview').src = c.image || '';
@@ -1075,6 +1080,7 @@ FN:${safeString(c.name || 'Unknown')}
 ORG:${safeString(c.company)}
 TITLE:${safeString(c.designation)}
 TEL;TYPE=CELL:${safeString(c.phone)}
+${c.secondaryPhone ? `TEL;TYPE=WORK:${safeString(c.secondaryPhone)}` : ''}
 EMAIL;TYPE=WORK:${safeString(c.email)}
 NOTE:Captured via Bizconnex Scanner at ${safeString(c.eventName || 'Event')}. Notes: ${safeString(c.notes)}
 END:VCARD`;
@@ -1342,7 +1348,16 @@ END:VCARD`;
     },
 
     exportToExcel() {
-        const data = this.state.contacts.map(c => ({ 'Name': c.name, 'Company': c.company, 'Phone': c.phone, 'Email': c.email, 'Event': c.eventName, 'Notes': c.notes }));
+        const data = this.state.contacts.map(c => ({ 
+            'Name': c.name, 
+            'Company': c.company, 
+            'Designation': c.designation || '',
+            'Primary Phone': c.phone, 
+            'Secondary Phone': c.secondaryPhone || '',
+            'Email': c.email, 
+            'Event': c.eventName, 
+            'Notes': c.notes 
+        }));
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Contacts"); XLSX.writeFile(wb, `Bizconnex_Contacts_${Date.now()}.xlsx`);
     },

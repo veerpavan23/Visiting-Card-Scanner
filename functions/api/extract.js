@@ -69,7 +69,7 @@ export async function onRequestPost({ request, env }) {
         const token = await getAccessToken();
 
         // --- 2. ATOMIC PROMPT (Salesforce Standard) ---
-        const prompt = `Extract card details. Return ONLY raw JSON with these keys: name, company, designation, phone, email, website, address. JSON ARRAY: [{"FirstName"...}]`;
+        const prompt = `Extract card details. Return ONLY raw JSON with these keys: name, company, designation, phone (Primary), secondaryPhone (Secondary if available), email, website, address. JSON ARRAY: [{"name": "...", "secondaryPhone": "..."}]`;
 
         // --- 3. CALL VERTEX AI (us-east1) ---
         const project = "schranders";
