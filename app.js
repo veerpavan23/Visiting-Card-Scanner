@@ -235,43 +235,43 @@ const App = {
 
         login() {
             return `
-                <div class="screen login-screen" style="padding: 40px 30px; height: 100%; display: flex; flex-direction: column;">
+                <div class="screen login-screen" style="padding: 24px 20px; height: 100%; display: flex; flex-direction: column;">
                     <!-- Centered Content Wrapper -->
-                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-                        <div style="text-align: center; margin-bottom: 40px;">
-                            <div style="background: var(--primary); width: 68px; height: 68px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 10px 30px rgba(160, 29, 34, 0.4);">
-                                <i data-lucide="user-check" style="width: 32px; height: 32px; color: #fff;"></i>
+                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; width: 100%; max-width: 400px; margin: 0 auto;">
+                        <div style="text-align: center; margin-bottom: 50px;">
+                            <div style="background: linear-gradient(135deg, var(--primary), var(--primary-light)); width: 80px; height: 80px; border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; box-shadow: 0 12px 35px rgba(160, 29, 34, 0.5); border: 1px solid rgba(255,255,255,0.1);">
+                                <i data-lucide="user-check" style="width: 38px; height: 38px; color: #fff;"></i>
                             </div>
-                            <h2 style="font-size: 28px; font-family: 'Outfit'; font-weight: 700; letter-spacing: -0.5px;">Bizconnex Login</h2>
-                            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 15px;">Enter your credentials to manage your events.</p>
+                            <h2 style="font-size: 32px; font-family: 'Outfit'; font-weight: 800; letter-spacing: -1px; line-height: 1.1;">Bizconnex Login</h2>
+                            <p style="color: var(--text-secondary); margin-top: 12px; font-size: 16px; opacity: 0.8;">Enter your credentials to begin</p>
                         </div>
 
                         <form id="login-form" onsubmit="App.handleLogin(event)" style="width: 100%;">
-                            <div class="premium-card" style="margin-bottom: 24px;">
+                            <div class="premium-card" style="margin-bottom: 30px; padding: 24px; width: 100%;">
                                 <div class="form-group">
-                                    <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; display: block;">Mobile Number (ID)</label>
+                                    <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 10px; display: block;">Mobile Number (ID)</label>
                                     <input type="tel" id="login-mobile" class="form-input" placeholder="e.g. 9876543210" required 
-                                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 14px;">
+                                           style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 16px; font-size: 16px; border-radius: 12px;">
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; display: block;">Login Password</label>
+                                    <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 10px; display: block;">Login Password</label>
                                     <input type="password" id="login-pass" class="form-input" placeholder="••••••••" required
-                                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 14px;">
+                                           style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 16px; font-size: 16px; border-radius: 12px;">
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 18px; font-size: 16px;">
-                                Sign In <i data-lucide="arrow-right" style="width: 18px;"></i>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 20px; font-size: 18px; box-shadow: 0 10px 30px rgba(160, 29, 34, 0.4);">
+                                Sign In <i data-lucide="arrow-right" style="width: 20px;"></i>
                             </button>
                         </form>
                     </div>
 
                     <!-- Footer at Bottom -->
-                    <div style="text-align: center; padding-top: 30px;">
-                        <p style="font-size: 12px; color: var(--text-muted); opacity: 0.7;">
-                            Contact your Admin for trade show access.
+                    <div style="text-align: center; padding-top: 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+                        <p style="font-size: 13px; color: var(--text-muted); opacity: 0.8;">
+                            Need help? Contact system administrator
                         </p>
-                        <div style="margin-top: 15px; font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--primary); opacity: 0.5;">BIZCONNEX ENTERPRISE</div>
+                        <div style="margin-top: 18px; font-size: 11px; font-weight: 900; letter-spacing: 3px; color: var(--primary); opacity: 0.6; text-transform: uppercase;">Bizconnex Secure Portal</div>
                     </div>
                 </div>
             `;
