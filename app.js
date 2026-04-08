@@ -477,22 +477,33 @@ const App = {
             }
             
             const now = new Date();
+            const isSyncing = !this.state.events.length && window.Cloud;
 
             return `
                 <div class="screen event-select-screen" style="padding: 24px;">
-                    <button class="btn-secondary" style="margin-bottom: 20px; padding: 10px 16px;" onclick="App.navigateTo('home')">
-                        <i data-lucide="arrow-left" style="width: 16px;"></i> Back
-                    </button>
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <button class="btn-secondary" style="padding: 10px 16px;" onclick="App.navigateTo('home')">
+                            <i data-lucide="arrow-left" style="width: 16px;"></i> Back
+                        </button>
+                        <button class="btn-secondary" style="padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" onclick="App.syncCloud(); App.showToast('Refreshing events...')">
+                            <i data-lucide="rotate-cw" style="width: 18px;"></i>
+                        </button>
+                    </div>
                     
                     <div style="margin-bottom: 30px;">
                         <h2 style="font-family: 'Outfit'; font-size: 26px;">Select Event</h2>
                         <p style="color: var(--text-secondary); font-size: 13px;">Choose an authorized trade show to begin scanning.</p>
                     </div>
 
-                    ${userEvents.length === 0 ? `
+                    ${isSyncing ? `
+                        <div style="text-align: center; padding: 40px; opacity: 0.6;">
+                            <div class="loader-spinner" style="margin: 0 auto 15px;"></div>
+                            <p style="font-size: 12px;">Connecting to Cloud...</p>
+                        </div>
+                    ` : userEvents.length === 0 ? `
                         <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px dashed var(--glass-border);">
                             <i data-lucide="shield-alert" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 15px;"></i>
-                            <p style="opacity: 0.5; font-size: 14px;">No trade shows assigned to your profile.<br>Contact your Administrator.</p>
+                            <p style="opacity: 0.5; font-size: 14px;">No trade shows assigned to your profile.<br>Tap the <i data-lucide="rotate-cw" style="width: 12px; display:inline;"></i> icon to refresh.</p>
                         </div>
                     ` : ''}
                     <div style="display: flex; flex-direction: column; gap: 15px;">
@@ -1389,19 +1400,22 @@ END:VCARD`;
                 if (snapshot.exists()) {
                     this.state.events = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
                     localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+                    // Reactive Refresh
+                    if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
+                    if (this.state.currentScreen === 'home') this.renderScreen('home');
                 }
             });
             onValue(ref(window.db, 'users_v1'), snapshot => {
                 if (snapshot.exists()) {
                     this.state.users = Object.values(snapshot.val());
                     localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                    // Reactive Refresh
+                    if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                 }
             });
             onValue(ref(window.db, 'contacts_v1'), snapshot => {
                 if (snapshot.exists()) {
                     const cloudContacts = Object.values(snapshot.val());
-                    // Merge cloud contacts with local (Cloud wins)
-                    const localIds = new Set(this.state.contacts.map(c => c.id));
                     cloudContacts.forEach(cc => {
                         const idx = this.state.contacts.findIndex(c => c.id === cc.id);
                         if (idx !== -1) this.state.contacts[idx] = cc;
@@ -1417,7 +1431,9 @@ END:VCARD`;
 
     normalizeMobile(mobile) {
         if (!mobile) return '';
-        return mobile.replace(/\D/g, '');
+        const digits = mobile.toString().replace(/\D/g, '');
+        // For robust matching, prioritize matching the last 10 digits to ignore country codes
+        return digits.length >= 10 ? digits.slice(-10) : digits;
     }
 };
 
