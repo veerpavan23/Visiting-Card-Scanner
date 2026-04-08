@@ -479,29 +479,58 @@ const App = {
             const now = new Date();
 
             return `
-                <div class="screen event-select-screen" style="padding: 30px;">
-                    <button class="btn-secondary" style="margin-bottom: 20px;" onclick="App.navigateTo('home')"><i data-lucide="arrow-left"></i> Back</button>
-                    <h2 style="font-family: 'Outfit'; margin-bottom: 25px;">Available Events</h2>
-                    ${userEvents.length === 0 ? '<p style="opacity: 0.5;">No trade shows assigned to your profile.</p>' : ''}
+                <div class="screen event-select-screen" style="padding: 24px;">
+                    <button class="btn-secondary" style="margin-bottom: 20px; padding: 10px 16px;" onclick="App.navigateTo('home')">
+                        <i data-lucide="arrow-left" style="width: 16px;"></i> Back
+                    </button>
+                    
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-family: 'Outfit'; font-size: 26px;">Select Event</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">Choose an authorized trade show to begin scanning.</p>
+                    </div>
+
+                    ${userEvents.length === 0 ? `
+                        <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px dashed var(--glass-border);">
+                            <i data-lucide="shield-alert" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 15px;"></i>
+                            <p style="opacity: 0.5; font-size: 14px;">No trade shows assigned to your profile.<br>Contact your Administrator.</p>
+                        </div>
+                    ` : ''}
                     <div style="display: flex; flex-direction: column; gap: 15px;">
                         ${userEvents.map(e => {
                             let statusText = 'Upcoming';
                             let statusColor = '#f1c40f'; // Yellow
+                            let statusIcon = 'calendar';
                             const start = new Date(e.start);
                             const end = new Date(e.end);
-                            if (now >= start && now <= end) { statusText = 'Live'; statusColor = '#2ecc71'; }
-                            else if (now > end) { statusText = 'Expired'; statusColor = '#e74c3c'; }
+                            
+                            if (now >= start && now <= end) { 
+                                statusText = 'Live'; 
+                                statusColor = '#2ecc71'; 
+                                statusIcon = 'radio';
+                            }
+                            else if (now > end) { 
+                                statusText = 'Completed'; 
+                                statusColor = '#3498db'; 
+                                statusIcon = 'check-circle-2';
+                            }
+                            
+                            const isActive = this.state.activeEvent?.id === e.id;
                             
                             return `
-                            <div class="premium-card" onclick="App.selectEvent('${e.id}')" style="${this.state.activeEvent?.id === e.id ? 'border-color: var(--accent);' : ''}">
-                                <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <div>
-                                        <h4 style="margin-bottom: 5px;">${e.name}</h4>
-                                        <p style="font-size: 11px; opacity: 0.5;">${isNaN(start) ? 'TBD' : start.toLocaleDateString()}</p>
+                            <div class="premium-card" onclick="App.selectEvent('${e.id}')" style="margin-bottom: 0; ${isActive ? 'border-color: var(--accent); background: rgba(239, 152, 19, 0.05);' : ''}">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 44px; height: 44px; background: ${statusColor}15; color: ${statusColor}; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="${statusIcon}"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="font-size: 15px; margin-bottom: 2px;">${e.name}</h4>
+                                            <p style="font-size: 11px; opacity: 0.5;">${isNaN(start) ? 'Date TBD' : start.toLocaleDateString() + ' - ' + end.toLocaleDateString()}</p>
+                                        </div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: ${statusColor}22; color: ${statusColor}; font-weight: bold;">${statusText}</span>
-                                        ${this.state.activeEvent?.id === e.id ? '<div style="margin-top: 10px;"><i data-lucide="check-circle" style="color: var(--accent); width: 14px;"></i></div>' : ''}
+                                        <span style="font-size: 9px; padding: 3px 8px; border-radius: 6px; background: ${statusColor}22; color: ${statusColor}; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${statusText}</span>
+                                        ${isActive ? '<div style="margin-top: 8px; color: var(--accent); font-size: 10px; font-weight: bold;">SELECTED</div>' : ''}
                                     </div>
                                 </div>
                             </div>
@@ -659,6 +688,24 @@ const App = {
             this.state.currentUser = user;
             this.state.isAdmin = false;
             localStorage.setItem('bizconnex_user', JSON.stringify(user));
+
+            // Proactive Data Refresh after login
+            if (window.Cloud) {
+                this.showToast('Synchronizing access...');
+                try {
+                    const [events, contacts] = await Promise.all([
+                        window.Cloud.getEvents(),
+                        window.Cloud.getContacts()
+                    ]);
+                    this.state.events = events;
+                    this.state.contacts = contacts;
+                    localStorage.setItem('bizconnex_events', JSON.stringify(events));
+                    localStorage.setItem('bizconnex_contacts', JSON.stringify(contacts));
+                } catch (e) {
+                    console.warn('App: Post-login sync failed', e);
+                }
+            }
+
             this.navigateTo('home');
         } else {
             console.error('App: Login Failed for', mobile);
