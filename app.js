@@ -1309,14 +1309,23 @@ END:VCARD`;
                 { id: 'end', label: 'End Date', type: 'date', value: eventObj?.end ? eventObj.end.split('T')[0] : '' },
                 { id: 'userIds', type: 'multiselect', label: 'Authorized Users', options: userOptions, selected: eventObj?.userIds || [] }
             ],
-            (data) => {
+            async (data) => {
                 if (!data.name) return;
+                
+                // Map userIds to mobile numbers for robust matching in user app
+                const selectedMobiles = (data.userIds || []).map(uid => {
+                    const u = this.state.users.find(x => x.id === uid);
+                    return u ? u.mobile : null;
+                }).filter(Boolean);
+
                 const finalEvent = {
                     id: eventObj?.id || 'ev_' + Date.now(),
                     name: data.name,
                     start: data.start ? new Date(data.start).toISOString() : new Date().toISOString(),
                     end: data.end ? new Date(data.end).toISOString() : '2030-12-31T00:00:00Z',
-                    userIds: data.userIds || []
+                    userIds: data.userIds || [],
+                    numbers: selectedMobiles, // Crucial for user-app matching
+                    createdAt: eventObj?.createdAt || new Date().toISOString()
                 };
 
                 if (isEdit) {
@@ -1326,18 +1335,59 @@ END:VCARD`;
                     this.state.events.push(finalEvent);
                 }
 
-                // Reverse map users to the eventId for speed
-                finalEvent.userIds.forEach(uid => {
+                // Cloud Sync Event
+                if (window.Cloud) await window.Cloud.saveEvent(finalEvent);
+
+                // Reverse map users to the eventId for speed and sync them
+                for (const uid of (data.userIds || [])) {
                     const u = this.state.users.find(x => x.id === uid);
-                    if (u && !u.eventIds.includes(finalEvent.id)) u.eventIds.push(finalEvent.id);
-                });
+                    if (u && !u.eventIds.includes(finalEvent.id)) {
+                        u.eventIds.push(finalEvent.id);
+                        if (window.Cloud) await window.Cloud.saveUser(u);
+                    }
+                }
 
                 localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
                 localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
                 this.renderScreen('eventManager');
+                this.showToast('Event Synced and Live');
             },
             isEdit ? 'Save Changes' : 'Launch Event'
         );
+    },
+    
+    async deleteEvent(id) {
+        if (!confirm('Are you sure you want to delete this event? This action will remove access for all users.')) return;
+        
+        this.state.events = this.state.events.filter(e => e.id !== id);
+        localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+        
+        if (window.Cloud) {
+            try {
+                await window.Cloud.deleteEvent(id);
+                this.showToast('Event Deleted from Cloud');
+            } catch (e) {
+                this.showToast('Error syncing deletion', 'error');
+            }
+        }
+        this.renderScreen('eventManager');
+    },
+
+    async deleteUser(id) {
+        if (!confirm('Permanently delete this user and revoke all trade show access?')) return;
+        
+        this.state.users = this.state.users.filter(u => u.id !== id);
+        localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+        
+        if (window.Cloud) {
+            try {
+                await window.Cloud.deleteUser(id);
+                this.showToast('User Deleted and Revoked');
+            } catch (e) {
+                this.showToast('Error syncing deletion', 'error');
+            }
+        }
+        this.renderScreen('userManager');
     },
     deleteContact(id) {
         if (confirm('Delete Contact?')) {
