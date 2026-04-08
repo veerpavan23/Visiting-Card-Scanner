@@ -363,7 +363,10 @@ const App = {
                 <div class="screen admin-screen">
                     <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="font-size: 22px; font-family: 'Outfit';">Control Panel</h2>
-                        <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="x"></i></button>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
+                            <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="x"></i></button>
+                        </div>
                     </header>
                     <div class="screen-content">
                         <div class="admin-card" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; text-align: center;">
@@ -399,9 +402,12 @@ const App = {
                             <button onclick="App.navigateTo('adminDashboard')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
                             <h2 style="font-size: 18px;">Users</h2>
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showImportModal()">Import</button>
-                            <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showUserModal()">+ New</button>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showImportModal()">Import</button>
+                                <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showUserModal()">+ New</button>
+                            </div>
                         </div>
                     </header>
                     <div class="screen-content">
@@ -431,7 +437,10 @@ const App = {
                             <button onclick="App.navigateTo('adminDashboard')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
                             <h2 style="font-size: 18px;">Events</h2>
                         </div>
-                        <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showEventModal()">+ New Trade Show</button>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
+                            <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showEventModal()">+ New Trade Show</button>
+                        </div>
                     </header>
                     <div class="screen-content">
                         ${this.state.events.length === 0 ? '<p style="text-align: center; padding: 40px; opacity: 0.5;">No events created.</p>' : this.state.events.map(e => `
@@ -1022,6 +1031,10 @@ END:VCARD`;
 
     deleteUser(id) {
         if (confirm('Delete user? This cannot be undone.')) {
+            // --- Sync Deletion to Cloud ---
+            if (window.Cloud) {
+                window.Cloud.deleteUser(id).catch(e => console.error('Cloud Delete User Failed:', e));
+            }
             this.state.users = this.state.users.filter(u => u.id !== id);
             localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
             this.renderScreen('userManager');
@@ -1029,6 +1042,10 @@ END:VCARD`;
     },
     deleteEvent(id) {
         if (confirm('Delete trade show? All authorized user links will be removed.')) {
+            // --- Sync Deletion to Cloud ---
+            if (window.Cloud) {
+                window.Cloud.deleteEvent(id).catch(e => console.error('Cloud Delete Event Failed:', e));
+            }
             this.state.events = this.state.events.filter(e => e.id !== id);
             localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
             this.renderScreen('eventManager');
