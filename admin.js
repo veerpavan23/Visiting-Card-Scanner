@@ -607,10 +607,19 @@ window.Admin = {
             scanCount: 0 
         };
 
-        if (window.Cloud) await window.Cloud.saveEvent(eventData);
-        alert('Event configuration saved successfully.');
-        this.hideCreateModal();
-        this.refreshActiveView();
+        if (window.Cloud) {
+            try {
+                await window.Cloud.saveEvent(eventData);
+                this.showToast('Event configuration saved');
+                this.hideCreateModal();
+                this.refreshActiveView();
+            } catch (err) {
+                console.error('Admin: Save Event Error:', err);
+                this.showToast('Error: Cloud sync failed', 'error');
+            }
+        } else {
+            this.showToast('Error: Cloud bridge offline', 'error');
+        }
     },
 
     async saveIndividualUser(targetId) {
@@ -619,7 +628,7 @@ window.Admin = {
         const password = document.getElementById('user-pass').value;
         
         if (!name || !mobile || !password) {
-            alert('Please fill all fields');
+            this.showToast('Please fill all fields', 'error');
             return;
         }
 
@@ -631,9 +640,19 @@ window.Admin = {
             role: 'user', 
             createdAt: new Date().toISOString() 
         };
-        if (window.Cloud) await window.Cloud.saveUser(userObj);
-        this.hideCreateModal();
-        this.refreshActiveView();
+        if (window.Cloud) {
+            try {
+                await window.Cloud.saveUser(userObj);
+                this.showToast('User provisioned successfully');
+                this.hideCreateModal();
+                this.refreshActiveView();
+            } catch (err) {
+                console.error('Admin: Save User Error:', err);
+                this.showToast('Error: Deployment failed', 'error');
+            }
+        } else {
+            this.showToast('Error: Cloud bridge offline', 'error');
+        }
     },
 
     async deleteEvent(id) { 
@@ -641,13 +660,15 @@ window.Admin = {
             if (window.Cloud) { 
                 try {
                     await window.Cloud.deleteEvent(id); 
-                    alert('Event deleted successfully.');
+                    this.showToast('Event deleted successfully');
                     this.refreshActiveView(); 
                 } catch (e) {
                     console.error('Admin: Delete Event Error', e);
-                    alert('Error: Could not delete event. Please check cloud connection.');
+                    this.showToast('Error: Global deletion failed', 'error');
                 }
-            } 
+            } else {
+                this.showToast('Error: Cloud offline', 'error');
+            }
         } 
     },
     
@@ -655,6 +676,7 @@ window.Admin = {
         if (confirm('Remove user? This will also revoke their access from all events immediately.')) { 
             if (window.Cloud) {
                 try {
+                    this.showToast('Revoking access...');
                     // 1. Delete user record
                     await window.Cloud.deleteUser(userId); 
                     
@@ -665,12 +687,14 @@ window.Admin = {
                             await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
                         }
                     }
-                    alert('User removed and access revoked successfully.');
+                    this.showToast('User and access revoked');
                     this.refreshActiveView();
                 } catch (e) {
                     console.error('Admin: Delete User Error', e);
-                    alert('Error: Could not delete user. Access might be partially revoked.');
+                    this.showToast('Error: Partial deletion occurred', 'error');
                 }
+            } else {
+                this.showToast('Error: Cloud offline', 'error');
             }
         } 
     },
@@ -706,8 +730,58 @@ window.Admin = {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Contacts");
         XLSX.writeFile(wb, `Bizconnex_Contacts_${new Date().toISOString().split('T')[0]}.xlsx`);
+    },
+    normalizeMobile(mobile) {
+        if (!mobile) return '';
+        return mobile.replace(/\D/g, '');
+    },
+
+    showToast(msg, status = 'success') {
+        const container = document.getElementById('notif-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: rgba(10, 25, 47, 0.95);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border: 1px solid ${status === 'success' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(231, 76, 60, 0.3)'};
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            animation: toastSlideIn 0.3s ease-out;
+            backdrop-filter: blur(10px);
+        `;
+        
+        const icon = status === 'success' ? 'check-circle' : 'alert-circle';
+        const color = status === 'success' ? '#2ecc71' : '#e74c3c';
+        
+        toast.innerHTML = `<i data-lucide="${icon}" style="color: ${color}; width: 18px;"></i> <span>${msg}</span>`;
+        container.appendChild(toast);
+        if (window.lucide) lucide.createIcons();
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(20px)';
+            toast.style.transition = 'all 0.5s ease';
+            setTimeout(() => toast.remove(), 500);
+        }, 4000);
     }
 };
+
+// Add CSS keyframes for admin toast
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes toastSlideIn {
+        from { transform: translateX(50px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+`;
+document.head.appendChild(style);
 
 
 // Admin.init() is called explicitly from admin.html — not auto-run here.
