@@ -655,55 +655,68 @@ window.Admin = {
         }
     },
 
-    async deleteEvent(id) { 
-        if (confirm('Delete event? Are you sure you want to remove this trade show?')) { 
-            if (window.Cloud) { 
-                try {
-                    await window.Cloud.deleteEvent(id); 
-                    this.showToast('Event deleted successfully');
-                    this.refreshActiveView(); 
-                } catch (e) {
-                    console.error('Admin: Delete Event Error', e);
-                    this.showToast('Error: Global deletion failed', 'error');
+    deleteEvent(id) { 
+        this.showConfirm(
+            'Delete Event?', 
+            'Are you sure you want to remove this trade show? All data for this event will be archived in the cloud but removed from the live list.', 
+            async () => {
+                if (window.Cloud) { 
+                    try {
+                        this.showToast('Deleting event...');
+                        await window.Cloud.deleteEvent(id); 
+                        this.showToast('Event deleted successfully');
+                        this.refreshActiveView(); 
+                    } catch (e) {
+                        console.error('Admin: Delete Event Error', e);
+                        this.showToast('Error: Global deletion failed', 'error');
+                    }
+                } else {
+                    this.showToast('Error: Cloud offline', 'error');
                 }
-            } else {
-                this.showToast('Error: Cloud offline', 'error');
             }
-        } 
+        );
     },
     
-    async deleteUser(userId, mobile) { 
-        if (confirm('Remove user? This will also revoke their access from all events immediately.')) { 
-            if (window.Cloud) {
-                try {
-                    this.showToast('Revoking access...');
-                    // 1. Delete user record
-                    await window.Cloud.deleteUser(userId); 
-                    
-                    // 2. Scrub mobile from all events
-                    for (const ev of this.state.events) {
-                        if (ev.numbers && ev.numbers.some(n => n.includes(mobile) || mobile.includes(n))) {
-                            const updatedNums = ev.numbers.filter(n => !n.includes(mobile) && !mobile.includes(n));
-                            await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
+    deleteUser(userId, mobile) { 
+        this.showConfirm(
+            'Remove User?', 
+            `Are you sure you want to revoke access for ${mobile}? This will remove their credentials and lock their scanner immediately.`,
+            async () => {
+                if (window.Cloud) {
+                    try {
+                        this.showToast('Revoking access...');
+                        // 1. Delete user record
+                        await window.Cloud.deleteUser(userId); 
+                        
+                        // 2. Scrub mobile from all events
+                        for (const ev of this.state.events) {
+                            if (ev.numbers && ev.numbers.some(n => n.includes(mobile) || mobile.includes(n))) {
+                                const updatedNums = ev.numbers.filter(n => !n.includes(mobile) && !mobile.includes(n));
+                                await window.Cloud.saveEvent({ ...ev, numbers: updatedNums });
+                            }
                         }
+                        this.showToast('User and access revoked');
+                        this.refreshActiveView();
+                    } catch (e) {
+                        console.error('Admin: Delete User Error', e);
+                        this.showToast('Error: Partial deletion occurred', 'error');
                     }
-                    this.showToast('User and access revoked');
-                    this.refreshActiveView();
-                } catch (e) {
-                    console.error('Admin: Delete User Error', e);
-                    this.showToast('Error: Partial deletion occurred', 'error');
+                } else {
+                    this.showToast('Error: Cloud offline', 'error');
                 }
-            } else {
-                this.showToast('Error: Cloud offline', 'error');
             }
-        } 
+        );
     },
 
     logout() {
-        if (confirm('Are you sure you want to log out?')) {
-            localStorage.removeItem('bizconnex_user');
-            window.location.href = '/'; 
-        }
+        this.showConfirm(
+            'Confirm Logout',
+            'Are you sure you want to log out of the Control Panel?',
+            () => {
+                localStorage.removeItem('bizconnex_user');
+                window.location.href = '/'; 
+            }
+        );
     },
 
     exportContacts() {
@@ -755,6 +768,7 @@ window.Admin = {
             font-family: 'Inter', sans-serif;
             animation: toastSlideIn 0.3s ease-out;
             backdrop-filter: blur(10px);
+            pointer-events: auto;
         `;
         
         const icon = status === 'success' ? 'check-circle' : 'alert-circle';
@@ -770,6 +784,36 @@ window.Admin = {
             toast.style.transition = 'all 0.5s ease';
             setTimeout(() => toast.remove(), 500);
         }, 4000);
+    },
+
+    showConfirm(title, message, onConfirm) {
+        const modal = document.getElementById('create-modal');
+        const content = document.getElementById('modal-content');
+        if (!modal || !content) return;
+
+        content.innerHTML = `
+            <div style="text-align: center; padding: 10px;">
+                <div style="width: 60px; height: 60px; background: rgba(231, 76, 60, 0.1); color: #e74c3c; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                    <i data-lucide="alert-triangle" style="width: 32px; height: 32px;"></i>
+                </div>
+                <h3 style="margin-bottom: 12px; font-family: 'Outfit'; font-size: 22px;">${title}</h3>
+                <p style="color: var(--text-secondary); line-height: 1.5; margin-bottom: 30px;">${message}</p>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-secondary" style="flex: 1;" onclick="Admin.hideCreateModal()">Cancel</button>
+                    <button class="btn-primary" style="flex: 1; background: #e74c3c; box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);" id="confirm-btn">
+                        Yes, Proceed
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+        
+        document.getElementById('confirm-btn').onclick = () => {
+            this.hideCreateModal();
+            onConfirm();
+        };
     }
 };
 
