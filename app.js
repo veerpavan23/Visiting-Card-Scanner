@@ -186,6 +186,37 @@ const App = {
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     },
 
+    renderAdminShell(content, activeTab) {
+        const container = document.querySelector('.app-container');
+        if (container) container.classList.add('is-admin');
+        
+        return `
+            <div class="admin-shell">
+                <div class="admin-sidebar">
+                    <div class="desktop-only" style="padding: 0 20px 20px 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; text-align: center;">
+                        <h2 style="font-family: 'Outfit'; color: var(--accent);">Control Panel</h2>
+                    </div>
+                    <div class="admin-sidebar-item ${activeTab==='dashboard'? 'active':''}" onclick="App.navigateTo('adminDashboard')">
+                        <i data-lucide="bar-chart-2"></i> <span>Stats</span>
+                    </div>
+                    <div class="admin-sidebar-item ${activeTab==='users'? 'active':''}" onclick="App.navigateTo('userManager')">
+                        <i data-lucide="users"></i> <span>Users</span>
+                    </div>
+                    <div class="admin-sidebar-item ${activeTab==='events'? 'active':''}" onclick="App.navigateTo('eventManager')">
+                        <i data-lucide="calendar"></i> <span>Events</span>
+                    </div>
+                    <div style="flex: 1;"></div>
+                    <div class="admin-sidebar-item" onclick="App.logout()" style="color: var(--danger);">
+                        <i data-lucide="log-out"></i> <span>Logout</span>
+                    </div>
+                </div>
+                <div class="admin-main">
+                    ${content}
+                </div>
+            </div>
+        `;
+    },
+
     // --- Screens ---
     screens: {
         splash() {
@@ -323,36 +354,6 @@ const App = {
                         <div style="text-align: center; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px; opacity: 0.3;">
                             <button style="background: transparent; border: none; color: #ff4d4d; font-size: 10px; text-decoration: underline;" onclick="App.hardReset()">Wipe Local Data & Reset</button>
                         </div>
-                    </div>
-                </div>
-            `;
-        },
-        renderAdminShell(content, activeTab) {
-            const container = document.querySelector('.app-container');
-            if (container) container.classList.add('is-admin');
-            
-            return `
-                <div class="admin-shell">
-                    <div class="admin-sidebar">
-                        <div class="desktop-only" style="padding: 0 20px 20px 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; text-align: center;">
-                            <h2 style="font-family: 'Outfit'; color: var(--accent);">Control Panel</h2>
-                        </div>
-                        <div class="admin-sidebar-item ${activeTab==='dashboard'? 'active':''}" onclick="App.navigateTo('adminDashboard')">
-                            <i data-lucide="bar-chart-2"></i> <span>Stats</span>
-                        </div>
-                        <div class="admin-sidebar-item ${activeTab==='users'? 'active':''}" onclick="App.navigateTo('userManager')">
-                            <i data-lucide="users"></i> <span>Users</span>
-                        </div>
-                        <div class="admin-sidebar-item ${activeTab==='events'? 'active':''}" onclick="App.navigateTo('eventManager')">
-                            <i data-lucide="calendar"></i> <span>Events</span>
-                        </div>
-                        <div style="flex: 1;"></div>
-                        <div class="admin-sidebar-item" onclick="App.logout()" style="color: var(--danger);">
-                            <i data-lucide="log-out"></i> <span>Logout</span>
-                        </div>
-                    </div>
-                    <div class="admin-main">
-                        ${content}
                     </div>
                 </div>
             `;
@@ -1029,26 +1030,42 @@ END:VCARD`;
         URL.revokeObjectURL(url);
     },
 
-    deleteUser(id) {
+    async deleteUser(id) {
         if (confirm('Delete user? This cannot be undone.')) {
-            // --- Sync Deletion to Cloud ---
-            if (window.Cloud) {
-                window.Cloud.deleteUser(id).catch(e => console.error('Cloud Delete User Failed:', e));
+            try {
+                // --- Sync Deletion to Cloud ---
+                if (window.Cloud) {
+                    await window.Cloud.deleteUser(id);
+                } else {
+                    throw new Error('Cloud Bridge offline');
+                }
+                this.state.users = this.state.users.filter(u => u.id !== id);
+                localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                this.showToast('User deleted successfully');
+                this.renderScreen('userManager');
+            } catch (err) {
+                console.error('App: Delete User Error:', err);
+                this.showToast('Error: Delete failed. Check your network.', 'error');
             }
-            this.state.users = this.state.users.filter(u => u.id !== id);
-            localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-            this.renderScreen('userManager');
         }
     },
-    deleteEvent(id) {
+    async deleteEvent(id) {
         if (confirm('Delete trade show? All authorized user links will be removed.')) {
-            // --- Sync Deletion to Cloud ---
-            if (window.Cloud) {
-                window.Cloud.deleteEvent(id).catch(e => console.error('Cloud Delete Event Failed:', e));
+            try {
+                // --- Sync Deletion to Cloud ---
+                if (window.Cloud) {
+                    await window.Cloud.deleteEvent(id);
+                } else {
+                    throw new Error('Cloud Bridge offline');
+                }
+                this.state.events = this.state.events.filter(e => e.id !== id);
+                localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+                this.showToast('Event deleted successfully');
+                this.renderScreen('eventManager');
+            } catch (err) {
+                console.error('App: Delete Event Error:', err);
+                this.showToast('Error: Server deletion failed. Try again.', 'error');
             }
-            this.state.events = this.state.events.filter(e => e.id !== id);
-            localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
-            this.renderScreen('eventManager');
         }
     },
 
