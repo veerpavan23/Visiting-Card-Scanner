@@ -572,3 +572,162 @@ h1, h2, h3, .brand {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* --- Camera UI Redesign --- */
+#camera-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+}
+
+.camera-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 24px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+}
+
+.camera-header p {
+    font-family: 'Outfit';
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-size: 14px;
+}
+
+.camera-header button {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+#camera-video, #capture-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#capture-preview {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    background: #000;
+}
+
+.camera-mask {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    aspect-ratio: 1.6;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.camera-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 40px 24px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 10;
+}
+
+.shutter-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #fff;
+    padding: 4px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
+}
+
+.shutter-btn:active { transform: scale(0.9); }
+
+.shutter-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #000;
+    background: var(--primary);
+}
+
+.camera-controls .btn-icon {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+/* Review Actions */
+.review-actions {
+    display: none;
+    position: absolute;
+    bottom: 40px;
+    width: 100%;
+    padding: 0 40px;
+    z-index: 20;
+    gap: 15px;
+}
+
+.review-btn-retry {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.review-btn-ok {
+    flex: 2;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 700;
+    box-shadow: 0 10px 20px rgba(160, 29, 34, 0.3);
+}

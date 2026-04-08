@@ -931,26 +931,138 @@ const App = {
     startCameraFlow() {
         const overlay = document.createElement('div');
         overlay.id = 'camera-overlay';
-        overlay.innerHTML = `<div class="camera-header"><button onclick="App.stopCamera()"><i data-lucide="x"></i></button><p>Position Contact Card</p><div></div></div><video id="camera-video" autoplay playsinline></video><div class="scanning-laser"></div><div class="camera-mask"></div><div class="camera-controls"><button onclick="document.getElementById('gallery-input').click()"><i data-lucide="image"></i></button><button class="shutter-btn" onclick="App.takePhoto()"><div class="shutter-inner"></div></button><button><i data-lucide="zap-off"></i></button></div><input type="file" id="gallery-input" style="display: none;" accept="image/*" onchange="App.handleGalleryUpload(event)"><canvas id="camera-canvas" style="display: none;"></canvas>`;
+        overlay.innerHTML = `
+            <div class="camera-header">
+                <button onclick="App.stopCamera()"><i data-lucide="x"></i></button>
+                <p>Position Contact Card</p>
+                <div></div>
+            </div>
+            
+            <video id="camera-video" autoplay playsinline></video>
+            <img id="capture-preview" src="">
+            
+            <div class="camera-mask" id="camera-mask"></div>
+            
+            <div class="camera-controls" id="capture-controls">
+                <button class="btn-icon" onclick="document.getElementById('gallery-input').click()">
+                    <i data-lucide="image"></i>
+                </button>
+                <button class="shutter-btn" onclick="App.takePhoto()">
+                    <div class="shutter-inner"></div>
+                </button>
+                <button class="btn-icon" onclick="App.toggleFlash()">
+                    <i data-lucide="zap"></i>
+                </button>
+            </div>
+
+            <div class="review-actions" id="review-controls" style="display: none;">
+                <button class="review-btn-retry" onclick="App.retryCapture()">
+                    <i data-lucide="rotate-ccw" style="width: 18px; vertical-align: middle; margin-right: 8px;"></i> Retry
+                </button>
+                <button class="review-btn-ok" onclick="App.confirmCapture()">
+                    OK <i data-lucide="check" style="width: 18px; vertical-align: middle; margin-left: 8px;"></i>
+                </button>
+            </div>
+
+            <input type="file" id="gallery-input" style="display: none;" accept="image/*" onchange="App.handleGalleryUpload(event)">
+            <canvas id="camera-canvas" style="display: none;"></canvas>
+        `;
         document.body.appendChild(overlay);
         lucide.createIcons();
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => { document.getElementById('camera-video').srcObject = s; this.activeStream = s; });
+
+        const constraints = { 
+            video: { 
+                facingMode: 'environment',
+                width: { ideal: 1920 },
+                height: { ideal: 1080 } 
+            } 
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(s => { 
+                const video = document.getElementById('camera-video');
+                if (video) video.srcObject = s; 
+                this.activeStream = s; 
+            })
+            .catch(err => {
+                console.error("Camera Error:", err);
+                this.showToast("Cannot access camera. Check permissions.", "error");
+                overlay.remove();
+            });
     },
 
-    stopCamera() { if (this.activeStream) this.activeStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-overlay')?.remove(); },
+    toggleFlash() {
+        const track = this.activeStream?.getVideoTracks()[0];
+        if (track && track.getCapabilities()?.torch) {
+            const current = track.getSettings().torch;
+            track.applyConstraints({ advanced: [{ torch: !current }] });
+        } else {
+            this.showToast("Flash not supported on this device", "info");
+        }
+    },
+
+    stopCamera() { 
+        if (this.activeStream) {
+            this.activeStream.getTracks().forEach(t => t.stop()); 
+            this.activeStream = null;
+        }
+        document.getElementById('camera-overlay')?.remove(); 
+    },
 
     takePhoto() {
         const video = document.getElementById('camera-video');
         const canvas = document.getElementById('camera-canvas');
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const preview = document.getElementById('capture-preview');
+        const captureControls = document.getElementById('capture-controls');
+        const reviewControls = document.getElementById('review-controls');
+        const mask = document.getElementById('camera-mask');
+
+        if (!video || !canvas) return;
+
+        // Freeze frame
+        canvas.width = video.videoWidth; 
+        canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
-        this.state.tempImage = canvas.toDataURL('image/jpeg', 0.8);
-        this.stopCamera(); this.renderScreen('crop');
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        this.state.tempImage = imageData;
+        
+        // Show review UI
+        preview.src = imageData;
+        preview.style.display = 'block';
+        captureControls.style.display = 'none';
+        reviewControls.style.display = 'flex';
+        mask.style.display = 'none';
+
+        // Provide haptic-like feedback
+        if (navigator.vibrate) navigator.vibrate(50);
+    },
+
+    retryCapture() {
+        const preview = document.getElementById('capture-preview');
+        const captureControls = document.getElementById('capture-controls');
+        const reviewControls = document.getElementById('review-controls');
+        const mask = document.getElementById('camera-mask');
+
+        preview.style.display = 'none';
+        captureControls.style.display = 'flex';
+        reviewControls.style.display = 'none';
+        mask.style.display = 'block';
+    },
+
+    confirmCapture() {
+        this.stopCamera(); 
+        this.renderScreen('crop');
     },
 
     handleGalleryUpload(e) {
+        if (!e.target.files || !e.target.files[0]) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { this.state.tempImage = ev.target.result; this.stopCamera(); this.renderScreen('crop'); };
+        reader.onload = (ev) => { 
+            this.state.tempImage = ev.target.result; 
+            this.stopCamera(); 
+            this.renderScreen('crop'); 
+        };
         reader.readAsDataURL(e.target.files[0]);
     },
 
