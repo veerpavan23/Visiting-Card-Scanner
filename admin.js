@@ -713,8 +713,8 @@ window.Admin = {
             'Confirm Logout',
             'Are you sure you want to log out of the Control Panel?',
             () => {
-                localStorage.removeItem('bizconnex_user');
-                window.location.href = '/'; 
+                localStorage.removeItem('admin_bizconnex_session');
+                window.location.href = 'admin-login.html'; 
             }
         );
     },

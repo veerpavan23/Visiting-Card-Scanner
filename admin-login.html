@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | Bizconnex Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css?v=14.15">
+    <style>
+        body {
+            background-color: #050a14;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+        }
+        .login-card {
+            background: rgba(10, 25, 47, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            width: 400px;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .login-logo {
+            width: 64px;
+            height: 64px;
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: #3498db;
+            background: rgba(255,255,255,0.08);
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            background: #3498db;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        .login-btn:hover { background: #2980b9; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-logo">
+            <i data-lucide="shield-check" style="width: 32px; height: 32px;"></i>
+        </div>
+        <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Admin Portal</h2>
+        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 32px;">Secure Enterprise Access</p>
+        
+        <form id="admin-login-form">
+            <div class="form-group">
+                <label>Administrator ID</label>
+                <input type="text" id="admin-id" class="form-input" placeholder="Enter Admin ID" required>
+            </div>
+            <div class="form-group">
+                <label>Secret Password</label>
+                <input type="password" id="admin-pass" class="form-input" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="login-btn">Secure Login</button>
+        </form>
+        
+        <div id="login-error" style="color: #e74c3c; font-size: 13px; margin-top: 20px; display: none;">
+            Invalid credentials. Please try again.
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Logic handled via admin.js soon, but for bootstrap:
+        document.getElementById('admin-login-form').onsubmit = (e) => {
+            e.preventDefault();
+            const id = document.getElementById('admin-id').value;
+            const pass = document.getElementById('admin-pass').value;
+            
+            if (id === 'admin' && pass === 'admin123') {
+                localStorage.setItem('admin_bizconnex_session', Date.now());
+                window.location.href = 'admin.html';
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        };
+        lucide.createIcons();
+    </script>
+</body>
+</html>

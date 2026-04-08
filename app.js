@@ -43,9 +43,6 @@ const App = {
         this.injectDebugUI(); 
         this.state.isInitialized = true;
         
-        // Auto-set admin status if logged in
-        if (this.state.currentUser?.id === 'admin') this.state.isAdmin = true;
-
         this.bindEvents();
         this.processQueue(); // Start background engine
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
@@ -153,7 +150,7 @@ const App = {
         const nav = document.getElementById('global-nav');
         if (!container || !nav) return;
 
-        const showNavScreens = ['home', 'contacts', 'export', 'adminDashboard'];
+        const showNavScreens = ['home', 'contacts', 'export'];
         nav.classList.toggle('hidden', !showNavScreens.includes(name));
 
         let html = '';
@@ -184,37 +181,6 @@ const App = {
             setTimeout(() => this.initCropper(), 50);
         }
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
-    },
-
-    renderAdminShell(content, activeTab) {
-        const container = document.querySelector('.app-container');
-        if (container) container.classList.add('is-admin');
-        
-        return `
-            <div class="admin-shell">
-                <div class="admin-sidebar">
-                    <div class="desktop-only" style="padding: 0 20px 20px 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; text-align: center;">
-                        <h2 style="font-family: 'Outfit'; color: var(--accent);">Control Panel</h2>
-                    </div>
-                    <div class="admin-sidebar-item ${activeTab==='dashboard'? 'active':''}" onclick="App.navigateTo('adminDashboard')">
-                        <i data-lucide="bar-chart-2"></i> <span>Stats</span>
-                    </div>
-                    <div class="admin-sidebar-item ${activeTab==='users'? 'active':''}" onclick="App.navigateTo('userManager')">
-                        <i data-lucide="users"></i> <span>Users</span>
-                    </div>
-                    <div class="admin-sidebar-item ${activeTab==='events'? 'active':''}" onclick="App.navigateTo('eventManager')">
-                        <i data-lucide="calendar"></i> <span>Events</span>
-                    </div>
-                    <div style="flex: 1;"></div>
-                    <div class="admin-sidebar-item" onclick="App.logout()" style="color: var(--danger);">
-                        <i data-lucide="log-out"></i> <span>Logout</span>
-                    </div>
-                </div>
-                <div class="admin-main">
-                    ${content}
-                </div>
-            </div>
-        `;
     },
 
     // --- Screens ---
@@ -363,111 +329,6 @@ const App = {
                     </div>
                 </div>
             `;
-        },
-
-        adminDashboard() {
-            const content = `
-                <div class="screen admin-screen">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="font-size: 22px; font-family: 'Outfit';">Control Panel</h2>
-                        <div style="display: flex; gap: 15px; align-items: center;">
-                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
-                            <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="x"></i></button>
-                        </div>
-                    </header>
-                    <div class="screen-content">
-                        <div class="admin-card" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; text-align: center;">
-                            <div><p style="font-size: 20px; font-weight: 800; color: var(--accent);">${this.state.users.length}</p><p style="font-size: 10px;">Users</p></div>
-                            <div><p style="font-size: 20px; font-weight: 800; color: var(--success);">${this.state.events.length}</p><p style="font-size: 10px;">Events</p></div>
-                            <div><p style="font-size: 20px; font-weight: 800; color: var(--info);">${this.state.contacts.length}</p><p style="font-size: 10px;">Leads</p></div>
-                        </div>
-                        <div class="premium-card" style="margin-top: 20px;" onclick="App.navigateTo('userManager')">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="background: var(--primary); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i data-lucide="users"></i></div>
-                                <div style="flex: 1;"><h4>User Management</h4><p style="font-size: 11px; opacity: 0.6;">Create and assign mobile users</p></div>
-                                <i data-lucide="chevron-right"></i>
-                            </div>
-                        </div>
-                        <div class="premium-card" style="margin-top: 15px;" onclick="App.navigateTo('eventManager')">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="background: var(--accent); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i data-lucide="calendar"></i></div>
-                                <div style="flex: 1;"><h4>Event Management</h4><p style="font-size: 11px; opacity: 0.6;">Define trade shows and meeting windows</p></div>
-                                <i data-lucide="chevron-right"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            return this.renderAdminShell(content, 'dashboard');
-        },
-
-        userManager() {
-            const content = `
-                <div class="screen-manager">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button onclick="App.navigateTo('adminDashboard')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
-                            <h2 style="font-size: 18px;">Users</h2>
-                        </div>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
-                            <div style="display: flex; gap: 8px;">
-                                <button class="btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showImportModal()">Import</button>
-                                <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showUserModal()">+ New</button>
-                            </div>
-                        </div>
-                    </header>
-                    <div class="screen-content">
-                        ${this.state.users.length === 0 ? '<p style="text-align: center; padding: 40px; opacity: 0.5;">No users created.</p>' : this.state.users.map(u => `
-                            <div class="premium-card" style="padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <h4 style="font-size: 14px;">${u.mobile}</h4>
-                                    <p style="font-size: 10px; opacity: 0.5; font-family: monospace;">PW: ${u.password}</p>
-                                </div>
-                                <div class="action-btn-group">
-                                    <button class="action-btn" onclick="App.showUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i data-lucide="edit-2" style="width:14px;"></i></button>
-                                    <button class="action-btn danger" onclick="App.deleteUser('${u.id}')"><i data-lucide="trash-2" style="width:14px;"></i></button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            return this.renderAdminShell(content, 'users');
-        },
-
-        eventManager() {
-            const content = `
-                <div class="screen-manager">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button onclick="App.navigateTo('adminDashboard')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
-                            <h2 style="font-size: 18px;">Events</h2>
-                        </div>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <button onclick="App.logout()" style="background: none; border: none; color: var(--danger);"><i data-lucide="power"></i></button>
-                            <button class="btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="App.showEventModal()">+ New Trade Show</button>
-                        </div>
-                    </header>
-                    <div class="screen-content">
-                        ${this.state.events.length === 0 ? '<p style="text-align: center; padding: 40px; opacity: 0.5;">No events created.</p>' : this.state.events.map(e => `
-                            <div class="premium-card" style="padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <h4 style="font-size: 14px;">${e.name}</h4>
-                                    <p style="font-size: 10px; opacity: 0.5;">${new Date(e.start).toLocaleDateString()} - ${new Date(e.end).toLocaleDateString()}</p>
-                                    <p style="font-size: 9px; color: var(--accent); margin-top: 4px;">${e.userIds?.length || 0} Authorized Users</p>
-                                </div>
-                                <div class="action-btn-group">
-                                    <button class="action-btn" onclick="App.showImportModal('${e.id}')"><i data-lucide="user-plus" style="width:14px;"></i></button>
-                                    <button class="action-btn" onclick="App.showEventModal(${JSON.stringify(e).replace(/"/g, '&quot;')})"><i data-lucide="edit-2" style="width:14px;"></i></button>
-                                    <button class="action-btn danger" onclick="App.deleteEvent('${e.id}')"><i data-lucide="trash-2" style="width:14px;"></i></button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            return this.renderAdminShell(content, 'events');
         },
 
         eventSelect() {
@@ -671,13 +532,9 @@ const App = {
         const mobile = mobileEl.value.trim();
         const pass = passEl.value.trim();
         
-        // Admin Master Bypass
-        if (mobile === 'admin' && pass === 'admin123') {
-            const admin = { name: 'System Admin', mobile: 'admin', isAdmin: true };
-            this.state.currentUser = admin;
-            this.state.isAdmin = true;
-            localStorage.setItem('bizconnex_user', JSON.stringify(admin));
-            this.navigateTo('adminDashboard');
+        // Admin Restricted Access
+        if (mobile === 'admin' || mobile === '9999999999') {
+            this.showToast('Restricted: Admin must use Desktop Portal', 'error');
             return;
         }
 
@@ -1343,170 +1200,7 @@ END:VCARD`;
         };
     },
 
-    // --- Core Admin Logic (Authoritative) ---
-    generatePassword() {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
-    },
-
-    async provisionUsers(rawList, targetEventId = null) {
-        const numbers = rawList.split(/[\n,]+/).map(n => n.trim().replace(/\s/g, '')).filter(n => n.length >= 8);
-        let created = 0, updated = 0;
-
-        for (const num of numbers) {
-            let user = this.state.users.find(u => u.mobile === num);
-            if (user) {
-                if (targetEventId && !user.eventIds.includes(targetEventId)) user.eventIds.push(targetEventId);
-                updated++;
-            } else {
-                user = {
-                    id: 'u_' + Date.now() + Math.random().toString(36).substr(2,9),
-                    mobile: num,
-                    password: this.generatePassword(),
-                    isAdmin: false,
-                    eventIds: targetEventId ? [targetEventId] : []
-                };
-                this.state.users.push(user);
-                created++;
-            }
-            if (window.Cloud) {
-                try { await window.Cloud.saveUser(user); } catch (e) { console.error('Cloud Sync failed for user'); }
-            }
-        }
-
-        localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-        this.showToast(`Sync Complete: ${created} New, ${updated} Assigned`);
-        return { created, updated };
-    },
-
-    showUserModal(userObj = null) {
-        const isEdit = !!userObj;
-        this.showModal(
-            isEdit ? 'Edit User' : 'New User',
-            [
-                { id: 'mobile', label: 'Mobile Number', value: userObj?.mobile || '', placeholder: 'e.g. 9876543210' },
-                { id: 'password', label: 'Password', value: userObj?.password || this.generatePassword(), placeholder: 'Auto-generated or Manual' }
-            ],
-            (data) => {
-                if (!data.mobile) return;
-                if (isEdit) {
-                    const idx = this.state.users.findIndex(u => u.id === userObj.id);
-                    if (idx !== -1) this.state.users[idx] = { ...this.state.users[idx], mobile: data.mobile, password: data.password };
-                } else {
-                    this.provisionUsers(data.mobile); // Re-uses upsert logic
-                }
-                localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-                this.renderScreen('userManager');
-            },
-            isEdit ? 'Update User' : 'Create User'
-        );
-    },
-
-    showImportModal(eventId = null) {
-        this.showModal(
-            eventId ? 'Assign Users to Event' : 'Bulk Import Users',
-            [
-                { id: 'list', type: 'textarea', label: 'Mobile Numbers (Newline or Comma separated)', placeholder: '9876543210\n9988776655...' }
-            ],
-            (data) => {
-                if (data.list) this.provisionUsers(data.list, eventId);
-                this.renderScreen(eventId ? 'eventManager' : 'userManager');
-            },
-            'Import & Sync'
-        );
-    },
-
-    showEventModal(eventObj = null) {
-        const isEdit = !!eventObj;
-        const userOptions = this.state.users.map(u => ({ label: u.mobile, value: u.id }));
-        
-        this.showModal(
-            isEdit ? 'Edit Event' : 'New Trade Show',
-            [
-                { id: 'name', label: 'Event Name', value: eventObj?.name || '', placeholder: 'e.g. Dubai Expo 2024' },
-                { id: 'start', label: 'Start Date', type: 'date', value: eventObj?.start ? eventObj.start.split('T')[0] : '' },
-                { id: 'end', label: 'End Date', type: 'date', value: eventObj?.end ? eventObj.end.split('T')[0] : '' },
-                { id: 'userIds', type: 'multiselect', label: 'Authorized Users', options: userOptions, selected: eventObj?.userIds || [] }
-            ],
-            async (data) => {
-                if (!data.name) return;
-                
-                // Map userIds to mobile numbers for robust matching in user app
-                const selectedMobiles = (data.userIds || []).map(uid => {
-                    const u = this.state.users.find(x => x.id === uid);
-                    return u ? u.mobile : null;
-                }).filter(Boolean);
-
-                const finalEvent = {
-                    id: eventObj?.id || 'ev_' + Date.now(),
-                    name: data.name,
-                    start: data.start ? new Date(data.start).toISOString() : new Date().toISOString(),
-                    end: data.end ? new Date(data.end).toISOString() : '2030-12-31T00:00:00Z',
-                    userIds: data.userIds || [],
-                    numbers: selectedMobiles, // Crucial for user-app matching
-                    createdAt: eventObj?.createdAt || new Date().toISOString()
-                };
-
-                if (isEdit) {
-                    const idx = this.state.events.findIndex(e => e.id === eventObj.id);
-                    if (idx !== -1) this.state.events[idx] = finalEvent;
-                } else {
-                    this.state.events.push(finalEvent);
-                }
-
-                // Cloud Sync Event
-                if (window.Cloud) await window.Cloud.saveEvent(finalEvent);
-
-                // Reverse map users to the eventId for speed and sync them
-                for (const uid of (data.userIds || [])) {
-                    const u = this.state.users.find(x => x.id === uid);
-                    if (u && !u.eventIds.includes(finalEvent.id)) {
-                        u.eventIds.push(finalEvent.id);
-                        if (window.Cloud) await window.Cloud.saveUser(u);
-                    }
-                }
-
-                localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
-                localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-                this.renderScreen('eventManager');
-                this.showToast('Event Synced and Live');
-            },
-            isEdit ? 'Save Changes' : 'Launch Event'
-        );
-    },
-    
-    async deleteEvent(id) {
-        if (!confirm('Are you sure you want to delete this event? This action will remove access for all users.')) return;
-        
-        this.state.events = this.state.events.filter(e => e.id !== id);
-        localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
-        
-        if (window.Cloud) {
-            try {
-                await window.Cloud.deleteEvent(id);
-                this.showToast('Event Deleted from Cloud');
-            } catch (e) {
-                this.showToast('Error syncing deletion', 'error');
-            }
-        }
-        this.renderScreen('eventManager');
-    },
-
-    async deleteUser(id) {
-        if (!confirm('Permanently delete this user and revoke all trade show access?')) return;
-        
-        this.state.users = this.state.users.filter(u => u.id !== id);
-        localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-        
-        if (window.Cloud) {
-            try {
-                await window.Cloud.deleteUser(id);
-                this.showToast('User Deleted and Revoked');
-            } catch (e) {
-                this.showToast('Error syncing deletion', 'error');
-            }
-        }
-        this.renderScreen('userManager');
-    },
+    // --- Business Logic ---
     deleteContact(id) {
         if (confirm('Delete Contact?')) {
             this.state.contacts = this.state.contacts.filter(c => c.id !== id);
