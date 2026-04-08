@@ -236,36 +236,42 @@ const App = {
         login() {
             return `
                 <div class="screen login-screen" style="padding: 40px 30px; height: 100%; display: flex; flex-direction: column;">
-                    <div style="text-align: center; margin-top: 60px; margin-bottom: 40px;">
-                        <div style="background: var(--primary); width: 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 10px 25px rgba(160, 29, 34, 0.3);">
-                            <i data-lucide="user-check" style="width: 32px; height: 32px; color: #fff;"></i>
+                    <!-- Centered Content Wrapper -->
+                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                        <div style="text-align: center; margin-bottom: 40px;">
+                            <div style="background: var(--primary); width: 68px; height: 68px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 10px 30px rgba(160, 29, 34, 0.4);">
+                                <i data-lucide="user-check" style="width: 32px; height: 32px; color: #fff;"></i>
+                            </div>
+                            <h2 style="font-size: 28px; font-family: 'Outfit'; font-weight: 700; letter-spacing: -0.5px;">Bizconnex Login</h2>
+                            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 15px;">Enter your credentials to manage your events.</p>
                         </div>
-                        <h2 style="font-size: 26px; font-family: 'Outfit';">Bizconnex Login</h2>
-                        <p style="color: var(--text-secondary); margin-bottom: 30px; font-size: 14px;">Enter your credentials to manage your events.</p>
+
+                        <form id="login-form" onsubmit="App.handleLogin(event)" style="width: 100%;">
+                            <div class="premium-card" style="margin-bottom: 24px;">
+                                <div class="form-group">
+                                    <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; display: block;">Mobile Number (ID)</label>
+                                    <input type="tel" id="login-mobile" class="form-input" placeholder="e.g. 9876543210" required 
+                                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 14px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; display: block;">Login Password</label>
+                                    <input type="password" id="login-pass" class="form-input" placeholder="••••••••" required
+                                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 14px;">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 18px; font-size: 16px;">
+                                Sign In <i data-lucide="arrow-right" style="width: 18px;"></i>
+                            </button>
+                        </form>
                     </div>
 
-                    <form id="login-form" onsubmit="App.handleLogin(event)" class="premium-card" style="background: transparent; border: none; padding: 0; box-shadow: none;">
-                        <div class="premium-card">
-                            <div class="form-group">
-                                <label>Mobile Number (ID)</label>
-                                <input type="tel" id="login-mobile" class="form-input" placeholder="e.g. 9876543210" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Login Password</label>
-                                <input type="password" id="login-pass" class="form-input" placeholder="••••••••" required>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">
-                            Sign In <i data-lucide="arrow-right"></i>
-                        </button>
-                    </form>
-
-                    <div style="text-align: center; margin-top: auto; padding-top: 20px;">
-                        <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    <!-- Footer at Bottom -->
+                    <div style="text-align: center; padding-top: 30px;">
+                        <p style="font-size: 12px; color: var(--text-muted); opacity: 0.7;">
                             Contact your Admin for trade show access.
                         </p>
-                        <div style="margin-top: 20px; font-size: 9px; opacity: 0.4; letter-spacing: 1px; color: var(--primary);">BIZCONNEX v14.0</div>
+                        <div style="margin-top: 15px; font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--primary); opacity: 0.5;">BIZCONNEX ENTERPRISE</div>
                     </div>
                 </div>
             `;
