@@ -20,6 +20,7 @@ const App = {
         isProcessing: false,
         tempImage: null,
         currentContact: null,
+        notifications: JSON.parse(localStorage.getItem('bizconnex_notifs') || '[]'),
         // Premium default contact
         placeholders: [
             { id: 'p1', name: 'Alaric Chen', company: 'Nexus Ventures', designation: 'Managing Director', phone: '+1 555-0102', email: 'alaric@nexus.vc', website: 'nexus.vc', address: 'Sand Hill Rd, Menlo Park', status: 'Updated', eventName: 'Global Tech Expo', timestamp: Date.now() },
@@ -54,6 +55,75 @@ const App = {
         }
 
         this.syncCloud();
+    },
+
+    async logout() {
+        this.showModal(
+            'Confirm Logout',
+            'Are you sure you want to sign out of Bizconnex? Your local card queue will still be preserved.',
+            [],
+            async () => {
+                this.state.currentUser = null;
+                this.state.activeEvent = null;
+                localStorage.removeItem('bizconnex_user');
+                localStorage.removeItem('bizconnex_active_event');
+                this.navigateTo('login');
+                this.showToast('Logged out successfully');
+            },
+            'Sign Out'
+        );
+    },
+
+    addNotification(title, message) {
+        const notif = {
+            id: 'nt_' + Date.now(),
+            title,
+            message,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            read: false
+        };
+        this.state.notifications.unshift(notif);
+        if (this.state.notifications.length > 15) this.state.notifications.pop();
+        localStorage.setItem('bizconnex_notifs', JSON.stringify(this.state.notifications));
+        this.updateNotificationBadge();
+    },
+
+    updateNotificationBadge() {
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        const unread = this.state.notifications.filter(n => !n.read).length;
+        badge.classList.toggle('hidden', unread === 0);
+    },
+
+    showNotifications() {
+        const notifHtml = this.state.notifications.length === 0 
+            ? '<p style="text-align:center; padding: 20px; opacity: 0.5;">No recent updates</p>'
+            : this.state.notifications.map(n => `
+                <div class="notif-item">
+                    <div class="notif-dot" style="${n.read ? 'opacity:0' : ''}"></div>
+                    <div class="notif-body">
+                        <h5>${n.title}</h5>
+                        <p>${n.message}</p>
+                        <div class="notif-time">${n.time}</div>
+                    </div>
+                </div>
+            `).join('');
+
+        this.showModal(
+            'Activity Log',
+            '',
+            [],
+            () => {
+                this.state.notifications.forEach(n => n.read = true);
+                localStorage.setItem('bizconnex_notifs', JSON.stringify(this.state.notifications));
+                this.updateNotificationBadge();
+            },
+            'Mark as Read'
+        );
+        
+        // Inject custom HTML into the modal we just opened
+        const body = document.getElementById('modal-fields-container');
+        if (body) body.innerHTML = `<div style="max-height: 400px; overflow-y: auto;">${notifHtml}</div>`;
     },
 
     normalizeMobile(mobile) {
@@ -98,14 +168,15 @@ const App = {
         this.renderScreen(screenName);
     },
 
-    // --- Modal System ---
-    showModal(title, fields, onSave, saveText = 'Save', cancelText = 'Cancel') {
+    // --- Premium Modal System (Replaces Native Prompts) ---
+    showModal(title, message, fields, callback, submitLabel = 'Confirm') {
         const overlay = document.createElement('div');
         overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
         overlay.innerHTML = `
             <div class="biz-modal animate__animated animate__zoomIn">
-                <h2>${title}</h2>
-                <div class="modal-body">
+                <h2 style="margin-bottom: 5px;">${title}</h2>
+                ${message ? `<p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">${message}</p>` : ''}
+                <div id="modal-fields-container">
                     ${fields.map(f => `
                         <div class="form-group">
                             <label style="margin-bottom: 8px; display: block; font-size: 13px;">${f.label}</label>
@@ -117,21 +188,23 @@ const App = {
                     `).join('')}
                 </div>
                 <div class="biz-modal-actions">
-                    <button class="btn-secondary" id="modal-cancel-btn" style="flex: 1;">${cancelText}</button>
-                    <button class="btn-primary" id="modal-save-btn" style="flex: 1;">${saveText}</button>
+                    <button class="btn-secondary" id="modal-cancel-btn" style="flex: 1;">Cancel</button>
+                    <button class="btn-primary" id="modal-save-btn" style="flex: 1;">${submitLabel}</button>
                 </div>
             </div>
         `;
         document.body.appendChild(overlay);
+        if (window.lucide) lucide.createIcons();
 
         document.getElementById('modal-cancel-btn').onclick = () => overlay.remove();
-        document.getElementById('modal-save-btn').onclick = () => {
+        document.getElementById('modal-save-btn').onclick = async () => {
             const data = {};
             fields.forEach(f => {
-                data[f.id] = document.getElementById(`modal-${f.id}`).value;
+                const el = document.getElementById(`modal-${f.id}`);
+                if (el) data[f.id] = el.value;
             });
-            onSave(data);
             overlay.remove();
+            if (callback) await callback(data);
         };
     },
 
@@ -148,10 +221,14 @@ const App = {
         this.state.currentScreen = name;
         const container = document.getElementById('screen-container');
         const nav = document.getElementById('global-nav');
-        if (!container || !nav) return;
+        const header = document.getElementById('global-header');
+        if (!container || !nav || !header) return;
 
-        const showNavScreens = ['home', 'contacts', 'export'];
+        const showNavScreens = ['home', 'contacts', 'export', 'eventSelect'];
         nav.classList.toggle('hidden', !showNavScreens.includes(name));
+        header.classList.toggle('hidden', name === 'splash' || name === 'login');
+
+        if (name === 'home') this.updateNotificationBadge();
 
         let html = '';
         try {
@@ -1051,7 +1128,7 @@ const App = {
         
         if (type === 'email') return this.handleAction('email', c.email);
 
-        // If both numbers exist, show choice modal
+        // If both numbers exist, show choice modal (Specialized Layout)
         if (c.phone && c.secondaryPhone) {
             const overlay = document.createElement('div');
             overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
@@ -1335,10 +1412,16 @@ END:VCARD`;
     },
 
     hardReset() {
-        if (confirm('DANGER: This will wipe all local data and log you out. Are you sure?')) {
-            localStorage.clear();
-            window.location.reload();
-        }
+        this.showModal(
+            'Emergency Reset',
+            'DANGER: This will wipe all local data, clear your card queue, and sign you out immediately. This cannot be undone.',
+            [],
+            async () => {
+                localStorage.clear();
+                window.location.reload();
+            },
+            'Reset Everything'
+        );
     },
 
     selectEvent(id) {
@@ -1365,8 +1448,28 @@ END:VCARD`;
             });
             onValue(ref(window.db, 'users_v1'), snapshot => {
                 if (snapshot.exists()) {
-                    this.state.users = Object.values(snapshot.val());
+                    const allUsers = Object.values(snapshot.val());
+                    this.state.users = allUsers;
                     localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                    
+                    // REAKTIVE SYNC: Refresh currentUser profile if it changed
+                    if (this.state.currentUser) {
+                        const updated = allUsers.find(u => this.normalizeMobile(u.mobile) === this.normalizeMobile(this.state.currentUser.mobile));
+                        if (updated) {
+                            // Check if new events assigned
+                            const oldEvents = (this.state.currentUser.assignedEvents || []).length;
+                            const newEvents = (updated.assignedEvents || []).length;
+                            
+                            if (newEvents > oldEvents) {
+                                this.addNotification('New Event Assigned', 'A new trade show has been assigned to your profile.');
+                                this.showToast('Permissions Updated', 'info');
+                            }
+                            
+                            this.state.currentUser = updated;
+                            localStorage.setItem('bizconnex_user', JSON.stringify(updated));
+                        }
+                    }
+
                     // Reactive Refresh
                     if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                 }

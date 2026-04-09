@@ -144,6 +144,76 @@ h1, h2, h3, .brand {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Global Header Styles */
+.nav-header {
+    height: 64px;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(15, 15, 15, 0.8);
+    backdrop-filter: blur(15px);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 1000;
+}
+.header-brand {
+    font-family: 'Outfit';
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+.header-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    position: relative;
+    padding: 8px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+.header-btn:active { transform: scale(0.9); }
+
+.badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: var(--danger);
+    border-radius: 50%;
+    border: 2px solid var(--bg-primary);
+}
+
+.pulsing {
+    animation: pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+/* Notification List Styles */
+.notif-item {
+    padding: 15px;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    gap: 15px;
+    animation: fadeIn 0.3s ease-out;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 6px;
+}
+.notif-body h5 { font-size: 13px; margin-bottom: 4px; color: var(--text-primary); }
+.notif-body p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+.notif-time { font-size: 9px; color: var(--text-muted); margin-top: 6px; text-transform: uppercase; }
+
 /* Glass Card Style */
 .premium-card {
     background: var(--glass-bg);

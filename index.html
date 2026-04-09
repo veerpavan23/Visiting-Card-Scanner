@@ -31,6 +31,17 @@
  </head>
  <body>
      <div id="app" class="app-container">
+         <!-- Global Header -->
+         <header id="global-header" class="nav-header hidden">
+             <div class="header-brand">Biz<span class="text-accent">connex</span></div>
+             <div class="header-actions">
+                 <button class="header-btn" onclick="App.showNotifications()">
+                     <i data-lucide="bell"></i>
+                     <span id="notif-badge" class="badge pulsing hidden"></span>
+                 </button>
+             </div>
+         </header>
+
          <!-- Screens will be dynamically injected here -->
          <main id="screen-container"></main>
 
