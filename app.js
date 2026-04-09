@@ -165,7 +165,29 @@ const App = {
             btn.classList.toggle('active', btn.getAttribute('data-screen') === screenName);
         });
 
+        this.updateHeader(screenName);
         this.renderScreen(screenName);
+    },
+
+    updateHeader(name) {
+        const left = document.getElementById('header-left');
+        const title = document.getElementById('header-title');
+        if (!left || !title) return;
+
+        // Reset
+        left.innerHTML = '';
+        title.innerHTML = 'Biz<span class="text-accent">connex</span>';
+
+        if (name === 'home') {
+            left.innerHTML = `<button onclick="App.logout()" style="background:none; border:none; color:var(--danger); padding:8px;"><i data-lucide="power"></i></button>`;
+        } else if (['contacts', 'eventSelect', 'review', 'export'].includes(name)) {
+            left.innerHTML = `<button onclick="App.navigateTo('home')" style="background:none; border:none; color:#fff; padding:8px;"><i data-lucide="arrow-left"></i></button>`;
+            if (name === 'contacts') title.innerText = 'My Contacts';
+            if (name === 'eventSelect') title.innerText = 'Trade Shows';
+            if (name === 'review') title.innerText = 'Edit Contact';
+        }
+
+        if (window.lucide) lucide.createIcons();
     },
 
     // --- Premium Modal System (Replaces Native Prompts) ---
@@ -336,15 +358,7 @@ const App = {
             }
 
             return `
-                <div class="screen home-screen">
-                    <header style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
-                        <div>
-                            <h1 style="font-size: 24px; font-family: 'Outfit';">Biz<span class="text-accent">connex</span></h1>
-                            <p style="color: var(--text-secondary); font-size: 11px;">Networking Intelligence</p>
-                        </div>
-                        <button onclick="App.logout()" style="background: none; border: none; color: #ff4d4d; font-size: 20px;"><i data-lucide="power"></i></button>
-                    </header>
-
+                <div class="screen home-screen" style="padding-top: 20px;">
                     <div class="screen-content" style="padding: 24px;">
                         ${processingCount > 0 ? `
                             <div class="pulse-processing" style="background: var(--warning); color: #000; padding: 10px 18px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
@@ -424,11 +438,8 @@ const App = {
             const isSyncing = !this.state.events.length && window.Cloud;
 
             return `
-                <div class="screen event-select-screen" style="padding: 24px;">
-                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <button class="btn-secondary" style="padding: 10px 16px;" onclick="App.navigateTo('home')">
-                            <i data-lucide="arrow-left" style="width: 16px;"></i> Back
-                        </button>
+                <div class="screen event-select-screen" style="padding: 24px; padding-top: 20px;">
+                    <div style="display:flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
                         <button class="btn-secondary" style="padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" onclick="App.syncCloud(); App.showToast('Refreshing events...')">
                             <i data-lucide="rotate-cw" style="width: 18px;"></i>
                         </button>
@@ -498,11 +509,7 @@ const App = {
         review() {
             return `
                 <div class="screen review-screen">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px;">
-                        <button onclick="App.navigateTo('home')" style="background: none; border: none; color: #fff;"><i data-lucide="arrow-left"></i></button>
-                        <h2 style="font-size: 18px; font-family: 'Outfit';">Edit Contact</h2>
-                    </header>
-                    <div class="screen-content" style="padding-bottom: 100px;">
+                    <div class="screen-content" style="padding-bottom: 100px; padding-top: 20px;">
                         <div class="premium-card" style="background: #000; text-align: center;"><img id="review-image-preview" style="max-height: 200px; max-width: 100%; object-fit: contain;"></div>
                         <div class="form-group"><label>Full Name</label><input type="text" id="field-name" class="form-input"></div>
                         <div class="form-group"><label>Company</label><input type="text" id="field-company" class="form-input"></div>
@@ -535,8 +542,8 @@ const App = {
         
         export() {
             return `
-                <div class="screen export-screen" style="padding: 30px;">
-                    <h2 style="font-family: 'Outfit'; margin-bottom: 20px;">Data Export</h2>
+                <div class="screen export-screen" style="padding: 30px; padding-top: 20px;">
+                    <h2 style="font-family: 'Outfit'; margin-bottom: 20px; font-size: 20px;">Data Export</h2>
                     <div class="premium-card" onclick="App.exportToExcel()">
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <div style="background: var(--success); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i data-lucide="file-spreadsheet"></i></div>
@@ -558,11 +565,7 @@ const App = {
             const contacts = this.state.contacts.filter(c => !event || c.eventId === event.id);
 
             return `
-                <div class="screen contacts-screen">
-                    <header style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
-                        <h2 style="font-size: 20px; font-family: 'Outfit';">Captured Contacts</h2>
-                        <p style="color: var(--text-secondary); font-size: 11px;">Viewing contacts for: ${event ? event.name : 'All Events'}</p>
-                    </header>
+                <div class="screen contacts-screen" style="padding-top: 20px;">
                     <div class="screen-content" style="padding: 20px;">
                         <div class="form-group" style="margin-bottom: 20px;">
                             <div style="position: relative;">
@@ -1456,13 +1459,18 @@ END:VCARD`;
                     if (this.state.currentUser) {
                         const updated = allUsers.find(u => this.normalizeMobile(u.mobile) === this.normalizeMobile(this.state.currentUser.mobile));
                         if (updated) {
-                            // Check if new events assigned
+                            // Check if new events assigned (DEEP REAKTIVITY FIX)
                             const oldEvents = (this.state.currentUser.assignedEvents || []).length;
-                            const newEvents = (updated.assignedEvents || []).length;
+                            const newEventList = updated.assignedEvents || [];
                             
-                            if (newEvents > oldEvents) {
+                            if (newEventList.length > oldEvents) {
                                 this.addNotification('New Event Assigned', 'A new trade show has been assigned to your profile.');
                                 this.showToast('Permissions Updated', 'info');
+                                
+                                // FORCE REFRESH IF ON SELECT SCREEN
+                                if (this.state.currentScreen === 'eventSelect') {
+                                    setTimeout(() => this.renderScreen('eventSelect'), 500);
+                                }
                             }
                             
                             this.state.currentUser = updated;

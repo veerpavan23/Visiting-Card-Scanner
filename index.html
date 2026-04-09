@@ -31,10 +31,11 @@
  </head>
  <body>
      <div id="app" class="app-container">
-         <!-- Global Header -->
+         <!-- Global Header (Dynamic Slots) -->
          <header id="global-header" class="nav-header hidden">
-             <div class="header-brand">Biz<span class="text-accent">connex</span></div>
-             <div class="header-actions">
+             <div id="header-left" class="header-side" style="flex: 1; display: flex; align-items: center;"></div>
+             <div id="header-title" class="header-brand" style="flex: 2; text-align: center;">Biz<span class="text-accent">connex</span></div>
+             <div id="header-right" class="header-side" style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end;">
                  <button class="header-btn" onclick="App.showNotifications()">
                      <i data-lucide="bell"></i>
                      <span id="notif-badge" class="badge pulsing hidden"></span>
