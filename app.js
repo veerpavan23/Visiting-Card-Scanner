@@ -1164,7 +1164,7 @@ END:VCARD`;
             font-size: 13px;
             z-index: 9999;
         `;
-        toast.innerHTML = `<i data-lucide="${status === 'success' ? 'check-circle' : 'alert-circle'}"></i> <span>${msg}</span>`;
+        toast.innerHTML = `<i data-lucide="${status === 'info' ? 'info' : (status === 'success' ? 'check-circle' : 'alert-circle')}"></i> <span>${msg}</span>`;
         container.appendChild(toast);
         if (window.lucide) lucide.createIcons();
 
@@ -1238,23 +1238,42 @@ END:VCARD`;
 
     // --- Business Logic ---
     async deleteContact(id) {
-        if (confirm('Delete Contact? This will remove it from the Cloud immediately.')) {
-            try {
-                // 1. Local Wipe
+        console.log('App: Initiating Delete for ID:', id);
+        
+        if (!confirm('Delete Contact? This will remove it from the Cloud and Local storage immediately.')) return;
+
+        try {
+            // 1. Cloud Wipe (PRIORITY - prevents re-syncing)
+            if (window.Cloud && typeof window.Cloud.deleteContact === 'function') {
+                console.log('App: Cloud Bridge Active. Executing Remote Delete...');
+                await window.Cloud.deleteContact(id);
+            } else {
+                console.error('App: Cloud Bridge Missing!', window.Cloud);
+                throw new Error('Cloud Server Unreachable. Check initialization.');
+            }
+
+            // 2. Local Wipe (Only if cloud success or user wants force)
+            const initialCount = this.state.contacts.length;
+            this.state.contacts = this.state.contacts.filter(c => c.id !== id);
+            localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+            
+            if (this.state.contacts.length === initialCount) {
+                console.warn('App: Local ID mismatch. No contact removed from state logic.');
+            }
+
+            this.showToast('Contact deleted successfully');
+            this.renderScreen(this.state.currentScreen); 
+            
+        } catch (err) {
+            console.error('App: Delete Contact Critical Failure:', err);
+            this.showToast(`Error: ${err.message}`, 'error');
+            
+            // Force local cleanup anyway after 2 seconds if cloud failed
+            setTimeout(() => {
                 this.state.contacts = this.state.contacts.filter(c => c.id !== id);
                 localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
-                
-                // 2. Cloud Wipe (Bug 3 Sync Fix)
-                if (window.Cloud && window.Cloud.deleteContact) {
-                    await window.Cloud.deleteContact(id);
-                }
-                
-                this.showToast('Contact deleted successfully');
-                this.renderScreen(this.state.currentScreen); // Force re-render of current view
-            } catch (err) {
-                console.error('App: Delete Contact Error:', err);
-                this.showToast('Error: Failed to delete from Cloud', 'error');
-            }
+                this.renderScreen(this.state.currentScreen);
+            }, 2000);
         }
     },
 
