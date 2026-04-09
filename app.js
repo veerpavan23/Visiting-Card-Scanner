@@ -939,6 +939,7 @@ const App = {
         
         this.showModal(
             'Attach Context',
+            'Would you like to add any notes to this lead before saving?',
             [
                 { id: 'notes', type: 'textarea', label: 'Context / Comments (Optional)', placeholder: 'E.g., Wants to schedule a callback next week...' }
             ],
@@ -1106,42 +1107,54 @@ END:VCARD`;
     },
 
     async deleteUser(id) {
-        if (confirm('Delete user? This cannot be undone.')) {
-            try {
-                // --- Sync Deletion to Cloud ---
-                if (window.Cloud) {
-                    await window.Cloud.deleteUser(id);
-                } else {
-                    throw new Error('Cloud Bridge offline');
+        this.showModal(
+            'Delete User',
+            'Are you sure you want to delete this user? This cannot be undone.',
+            [], 
+            async () => {
+                try {
+                    this.showToast('Deleting user...', 'info');
+                    if (window.Cloud) {
+                        await window.Cloud.deleteUser(id);
+                    } else {
+                        throw new Error('Cloud Bridge offline');
+                    }
+                    this.state.users = this.state.users.filter(u => u.id !== id);
+                    localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
+                    this.showToast('User deleted successfully');
+                    this.renderScreen('userManager');
+                } catch (err) {
+                    console.error('App: Delete User Error:', err);
+                    this.showToast(`Error: ${err.message}`, 'error');
                 }
-                this.state.users = this.state.users.filter(u => u.id !== id);
-                localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
-                this.showToast('User deleted successfully');
-                this.renderScreen('userManager');
-            } catch (err) {
-                console.error('App: Delete User Error:', err);
-                this.showToast('Error: Delete failed. Check your network.', 'error');
-            }
-        }
+            },
+            'Delete User'
+        );
     },
     async deleteEvent(id) {
-        if (confirm('Delete trade show? All authorized user links will be removed.')) {
-            try {
-                // --- Sync Deletion to Cloud ---
-                if (window.Cloud) {
-                    await window.Cloud.deleteEvent(id);
-                } else {
-                    throw new Error('Cloud Bridge offline');
+        this.showModal(
+            'Delete Trade Show',
+            'Are you sure? All authorized user links for this event will be removed.',
+            [],
+            async () => {
+                try {
+                    this.showToast('Deleting event...', 'info');
+                    if (window.Cloud) {
+                        await window.Cloud.deleteEvent(id);
+                    } else {
+                        throw new Error('Cloud Bridge offline');
+                    }
+                    this.state.events = this.state.events.filter(e => e.id !== id);
+                    localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+                    this.showToast('Event deleted successfully');
+                    this.renderScreen('eventManager');
+                } catch (err) {
+                    console.error('App: Delete Event Error:', err);
+                    this.showToast(`Error: ${err.message}`, 'error');
                 }
-                this.state.events = this.state.events.filter(e => e.id !== id);
-                localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
-                this.showToast('Event deleted successfully');
-                this.renderScreen('eventManager');
-            } catch (err) {
-                console.error('App: Delete Event Error:', err);
-                this.showToast('Error: Server deletion failed. Try again.', 'error');
-            }
-        }
+            },
+            'Delete Event'
+        );
     },
 
     // --- Rendering Helpers ---
@@ -1177,12 +1190,14 @@ END:VCARD`;
     },
 
     // --- Premium Modal System (Replaces Native Prompts) ---
-    showModal(title, fields, callback, submitLabel = 'Confirm') {
+    showModal(title, message, fields, callback, submitLabel = 'Confirm') {
         const overlay = document.createElement('div');
-        overlay.className = 'biz-modal-overlay';
+        overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
         overlay.innerHTML = `
-            <div class="biz-modal">
-                <h2>${title}</h2>
+            <div class="biz-modal animate__animated animate__zoomIn">
+                <h2 style="margin-bottom: 5px;">${title}</h2>
+                ${message ? `<p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">${message}</p>` : ''}
+                <div id="modal-fields-container" style="margin-top: 10px;">
                 ${fields.map(f => {
                     if (f.type === 'textarea') {
                         return `
@@ -1214,6 +1229,7 @@ END:VCARD`;
                         </div>
                     `;
                 }).join('')}
+                </div>
                 <div class="biz-modal-actions">
                     <button class="btn-secondary" style="flex: 1;" onclick="this.closest('.biz-modal-overlay').remove()">Cancel</button>
                     <button class="btn-primary" style="flex: 1;" id="modal-submit">${submitLabel}</button>
@@ -1221,60 +1237,57 @@ END:VCARD`;
             </div>
         `;
         document.body.appendChild(overlay);
+        if (window.lucide) lucide.createIcons();
         const submit = overlay.querySelector('#modal-submit');
-        submit.onclick = () => {
+        submit.onclick = async () => {
             const results = {};
             fields.forEach(f => {
                 if (f.type === 'multiselect') {
                     results[f.id] = Array.from(overlay.querySelectorAll(`input[name="modal-multi-${f.id}"]:checked`)).map(cb => cb.value);
                 } else {
-                    results[f.id] = document.getElementById(`modal-field-${f.id}`).value;
+                    const el = document.getElementById(`modal-field-${f.id}`);
+                    if (el) results[f.id] = el.value;
                 }
             });
             overlay.remove();
-            callback(results);
+            await callback(results);
         };
     },
 
     // --- Business Logic ---
     async deleteContact(id) {
         console.log('App: Initiating Delete for ID:', id);
-        
-        if (!confirm('Delete Contact? This will remove it from the Cloud and Local storage immediately.')) return;
+        this.showModal(
+            'Delete Contact',
+            'Are you sure you want to delete this contact? It will be removed from your phone and the cloud sync immediately.',
+            [],
+            async () => {
+                try {
+                    this.showToast('Deleting from cloud...', 'info');
 
-        try {
-            // 1. Cloud Wipe (PRIORITY - prevents re-syncing)
-            if (window.Cloud && typeof window.Cloud.deleteContact === 'function') {
-                console.log('App: Cloud Bridge Active. Executing Remote Delete...');
-                await window.Cloud.deleteContact(id);
-            } else {
-                console.error('App: Cloud Bridge Missing!', window.Cloud);
-                throw new Error('Cloud Server Unreachable. Check initialization.');
-            }
+                    // 1. Cloud Wipe
+                    if (window.Cloud && typeof window.Cloud.deleteContact === 'function') {
+                        console.log('App: Cloud Bridge Active. Executing Remote Delete...');
+                        await window.Cloud.deleteContact(id);
+                    } else {
+                        console.error('App: Cloud Bridge Missing!', window.Cloud);
+                        throw new Error('Cloud Server Unreachable. Check initialization.');
+                    }
 
-            // 2. Local Wipe (Only if cloud success or user wants force)
-            const initialCount = this.state.contacts.length;
-            this.state.contacts = this.state.contacts.filter(c => c.id !== id);
-            localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
-            
-            if (this.state.contacts.length === initialCount) {
-                console.warn('App: Local ID mismatch. No contact removed from state logic.');
-            }
-
-            this.showToast('Contact deleted successfully');
-            this.renderScreen(this.state.currentScreen); 
-            
-        } catch (err) {
-            console.error('App: Delete Contact Critical Failure:', err);
-            this.showToast(`Error: ${err.message}`, 'error');
-            
-            // Force local cleanup anyway after 2 seconds if cloud failed
-            setTimeout(() => {
-                this.state.contacts = this.state.contacts.filter(c => c.id !== id);
-                localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
-                this.renderScreen(this.state.currentScreen);
-            }, 2000);
-        }
+                    // 2. Local Wipe
+                    this.state.contacts = this.state.contacts.filter(c => c.id !== id);
+                    localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+                    
+                    this.showToast('Contact deleted successfully');
+                    this.renderScreen(this.state.currentScreen); 
+                    
+                } catch (err) {
+                    console.error('App: Delete Contact Critical Failure:', err);
+                    this.showToast(`Error: ${err.message}`, 'error');
+                }
+            },
+            'Delete Now'
+        );
     },
 
     exportToExcel() {
