@@ -103,6 +103,7 @@ h1, h2, h3, .brand {
     background: radial-gradient(circle at 0% 0%, #1a1a1a 0%, #0f0f0f 100%);
     box-shadow: 0 0 100px rgba(0,0,0,0.5);
     overflow: hidden;
+    padding-top: 64px; /* Space for Fixed Header */
 }
 
 /* Screen Transitions */

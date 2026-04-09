@@ -58,17 +58,17 @@ const App = {
     },
 
     async logout() {
-        this.showModal(
+        App.showModal(
             'Confirm Logout',
             'Are you sure you want to sign out of Bizconnex? Your local card queue will still be preserved.',
             [],
             async () => {
-                this.state.currentUser = null;
-                this.state.activeEvent = null;
+                App.state.currentUser = null;
+                App.state.activeEvent = null;
                 localStorage.removeItem('bizconnex_user');
                 localStorage.removeItem('bizconnex_active_event');
-                this.navigateTo('login');
-                this.showToast('Logged out successfully');
+                App.navigateTo('login');
+                App.showToast('Logged out successfully');
             },
             'Sign Out'
         );
@@ -1415,7 +1415,7 @@ END:VCARD`;
     },
 
     hardReset() {
-        this.showModal(
+        App.showModal(
             'Emergency Reset',
             'DANGER: This will wipe all local data, clear your card queue, and sign you out immediately. This cannot be undone.',
             [],
