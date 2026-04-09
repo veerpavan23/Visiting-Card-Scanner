@@ -66,7 +66,7 @@ export default async function handler(req) {
         
         const base64Data = imageData.split(',')[1];
         const token = await getAccessToken();
-        const prompt = `Extract card details. Return ONLY raw JSON with these keys: name, company, designation, phone, email, website, address. JSON ARRAY: [{"FirstName"...}]`;
+        const prompt = `Extract card details. Return ONLY raw JSON with these keys: name, company, designation, phone (primary), secondaryPhone, email, website, address. If multiple numbers exist, put the first in 'phone' and the second in 'secondaryPhone'. JSON ARRAY: [{"name": "...", "company": "...", ...}]`;
         const project = "schranders";
         const endpoint = `https://us-east1-aiplatform.googleapis.com/v1/projects/${project}/locations/us-east1/publishers/google/models/gemini-2.5-flash:generateContent`;
 

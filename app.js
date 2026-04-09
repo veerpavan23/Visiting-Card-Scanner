@@ -762,9 +762,9 @@ const App = {
                         </div>
 
                         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('call', '${c.phone}')"><i data-lucide="phone" style="width: 16px;"></i></button>
-                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('whatsapp', '${c.phone}')"><i data-lucide="message-circle" style="width: 16px;"></i></button>
-                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleAction('email', '${c.email}')"><i data-lucide="mail" style="width: 16px;"></i></button>
+                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleContactAction('call', '${c.id}')"><i data-lucide="phone" style="width: 16px;"></i></button>
+                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleContactAction('whatsapp', '${c.id}')"><i data-lucide="message-circle" style="width: 16px;"></i></button>
+                            <button class="btn-secondary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); App.handleContactAction('email', '${c.id}')"><i data-lucide="mail" style="width: 16px;"></i></button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                             <button class="btn-primary" style="flex: 2; padding: 8px; background: #3498db; border-color: #3498db;" onclick="event.stopPropagation(); App.downloadVCF('${c.id}')"><i data-lucide="user-plus" style="width: 16px; margin-right: 5px;"></i> Save to Phone</button>
@@ -982,6 +982,8 @@ const App = {
             // Forgiving Key Mapping
             result.name = result.name || result.fullName || result.full_name || 'Unknown';
             result.company = result.company || result.organization || '';
+            result.phone = result.phone || result.primary_phone || result.primary || '';
+            result.secondaryPhone = result.secondaryPhone || result.secondary_phone || result.secondary || '';
             
             return result;
         } catch (e) { 
@@ -1037,9 +1039,46 @@ const App = {
 
     handleAction(t, v) { 
         if (!v) return; 
-        if (t==='call') window.location.href=`tel:${v}`; 
+        if (t==='call') window.location.href=`tel:${v.replace(/\s/g,'')}`; 
         if (t==='whatsapp') window.open(`https://wa.me/${v.replace(/\D/g,'')}`); 
         if (t==='email') window.location.href=`mailto:${v}`;
+    },
+
+    handleContactAction(type, id) {
+        const c = this.state.contacts.find(x => x.id === id);
+        if (!c) return;
+        
+        if (type === 'email') return this.handleAction('email', c.email);
+
+        // If both numbers exist, show choice modal
+        if (c.phone && c.secondaryPhone) {
+            const overlay = document.createElement('div');
+            overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
+            overlay.innerHTML = `
+                <div class="biz-modal animate__animated animate__zoomIn" style="max-width: 320px; text-align: center;">
+                    <div style="background: var(--accent)11; color: var(--accent); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i data-lucide="${type === 'call' ? 'phone' : 'message-circle'}"></i>
+                    </div>
+                    <h3 style="margin-bottom: 10px; font-family: 'Outfit';">Choose Number</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 25px;">Which number would you like to ${type === 'call' ? 'call' : 'message'}?</p>
+                    
+                    <button class="btn-primary" style="width: 100%; margin-bottom: 12px; background: var(--bg-tertiary); color: #fff; border: 1px solid var(--glass-border);" 
+                            onclick="this.closest('.biz-modal-overlay').remove(); App.handleAction('${type}', '${c.phone}')">
+                        Primary: ${c.phone}
+                    </button>
+                    <button class="btn-primary" style="width: 100%; margin-bottom: 20px; background: var(--bg-tertiary); color: #fff; border: 1px solid var(--glass-border);" 
+                            onclick="this.closest('.biz-modal-overlay').remove(); App.handleAction('${type}', '${c.secondaryPhone}')">
+                        Secondary: ${c.secondaryPhone}
+                    </button>
+                    
+                    <button class="btn-secondary" style="width: 100%; background: none; border: none; font-size: 13px; opacity: 0.6;" onclick="this.closest('.biz-modal-overlay').remove()">Cancel</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            if (window.lucide) lucide.createIcons();
+        } else {
+            this.handleAction(type, c.phone || c.secondaryPhone);
+        }
     },
 
     downloadVCF(id) {
@@ -1060,13 +1099,10 @@ EMAIL;TYPE=WORK:${safeString(c.email)}
 NOTE:Captured via Bizconnex Scanner at ${safeString(c.eventName || 'Event')}. Notes: ${safeString(c.notes)}
 END:VCARD`;
         
-        const blob = new Blob([vcfText], { type: 'text/vcard' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(c.name || 'contact').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.vcf`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Final Bug 4 Fix: Use Data URI and direct assignment to trigger OS Contact app integration
+        const uri = 'data:text/vcard;charset=utf-8,' + encodeURIComponent(vcfText);
+        window.location.assign(uri);
+        this.showToast('Opening Contact Card...');
     },
 
     async deleteUser(id) {
@@ -1201,11 +1237,24 @@ END:VCARD`;
     },
 
     // --- Business Logic ---
-    deleteContact(id) {
-        if (confirm('Delete Contact?')) {
-            this.state.contacts = this.state.contacts.filter(c => c.id !== id);
-            localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
-            this.navigateTo('home');
+    async deleteContact(id) {
+        if (confirm('Delete Contact? This will remove it from the Cloud immediately.')) {
+            try {
+                // 1. Local Wipe
+                this.state.contacts = this.state.contacts.filter(c => c.id !== id);
+                localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+                
+                // 2. Cloud Wipe (Bug 3 Sync Fix)
+                if (window.Cloud && window.Cloud.deleteContact) {
+                    await window.Cloud.deleteContact(id);
+                }
+                
+                this.showToast('Contact deleted successfully');
+                this.renderScreen(this.state.currentScreen); // Force re-render of current view
+            } catch (err) {
+                console.error('App: Delete Contact Error:', err);
+                this.showToast('Error: Failed to delete from Cloud', 'error');
+            }
         }
     },
 

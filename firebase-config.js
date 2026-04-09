@@ -129,6 +129,17 @@ const Cloud = {
             console.error("Cloud: RTDB Delete User Error", e);
             throw e;
         }
+    },
+
+    async deleteContact(id) {
+        console.log('Cloud RTDB: Removing Contact...', id);
+        try {
+            await remove(ref(db, 'contacts_v1/' + id));
+            return true;
+        } catch (e) {
+            console.error("Cloud: RTDB Delete Contact Error", e);
+            throw e;
+        }
     }
 };
 
