@@ -328,9 +328,11 @@ const App = {
 
         home() {
             const processingCount = this.state.uploadQueue.filter(q => q.status === 'Processing').length;
+            const event = this.state.activeEvent;
+            const myContacts = this.state.contacts.filter(c => this.isAuthorizedForContact(c));
             const contacts = (this.state.filterAllEvents || !event) 
-                ? this.state.contacts 
-                : this.state.contacts.filter(c => c.eventId === event.id);
+                ? myContacts 
+                : myContacts.filter(c => c.eventId === event.id);
 
             const now = new Date();
             let eventStatus = 'Upcoming';
@@ -553,9 +555,10 @@ const App = {
 
         contacts() {
             const event = this.state.activeEvent;
+            const myContacts = this.state.contacts.filter(c => this.isAuthorizedForContact(c));
             const contacts = (this.state.filterAllEvents || !event) 
-                ? this.state.contacts 
-                : this.state.contacts.filter(c => c.eventId === event.id);
+                ? myContacts 
+                : myContacts.filter(c => c.eventId === event.id);
 
             return `
                 <div class="screen contacts-screen" style="padding-top: 20px;">
@@ -591,7 +594,8 @@ const App = {
     filterContacts(query) {
         const q = query.toLowerCase();
         const event = this.state.activeEvent;
-        const filtered = this.state.contacts.filter(c => 
+        const myContacts = this.state.contacts.filter(c => this.isAuthorizedForContact(c));
+        const filtered = myContacts.filter(c => 
             (!event || c.eventId === event.id) && 
             ((c.name || '').toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
         );
@@ -1512,6 +1516,18 @@ END:VCARD`;
         const digits = mobile.toString().replace(/\D/g, '');
         // For robust matching, prioritize matching the last 10 digits to ignore country codes
         return digits.length >= 10 ? digits.slice(-10) : digits;
+    },
+
+    isAuthorizedForContact(contact) {
+        if (this.state.isAdmin) return true;
+        if (!this.state.currentUser || !this.state.currentUser.mobile) return false;
+        
+        // Contacts without researcherId (Legacy) are only visible if the user is an admin or if we can't verify ownership
+        if (!contact.researcherId) return false; 
+        
+        const myId = this.normalizeMobile(this.state.currentUser.mobile);
+        const contactId = this.normalizeMobile(contact.researcherId);
+        return myId === contactId;
     }
 };
 
