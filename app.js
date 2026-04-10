@@ -21,6 +21,7 @@ const App = {
         tempImage: null,
         currentContact: null,
         notifications: JSON.parse(localStorage.getItem('bizconnex_notifs') || '[]'),
+        filterAllEvents: localStorage.getItem('bizconnex_filter_all') === 'true',
         // Premium default contact
         placeholders: [
             { id: 'p1', name: 'Alaric Chen', company: 'Nexus Ventures', designation: 'Managing Director', phone: '+1 555-0102', email: 'alaric@nexus.vc', website: 'nexus.vc', address: 'Sand Hill Rd, Menlo Park', status: 'Updated', eventName: 'Global Tech Expo', timestamp: Date.now() },
@@ -39,13 +40,14 @@ const App = {
     // --- Initialization ---
     init() {
         console.log('✅ Bizconnex AI Engine Active (v14.07)');
-        this.syncCloud(); // Load initial events
+        this.migrateLegacyData();
+        this.syncCloud(); 
         this.checkConnectivity();
         this.injectDebugUI(); 
         this.state.isInitialized = true;
         
         this.bindEvents();
-        this.processQueue(); // Start background engine
+        this.processQueue(); 
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
 
         if (this.state.currentUser) {
@@ -53,8 +55,33 @@ const App = {
         } else {
             this.navigateTo('login');
         }
+    },
 
-        this.syncCloud();
+    migrateLegacyData() {
+        const legacyKeys = ['contacts', 'biz_contacts', 'bizconnex_queue_legacy', 'bizconnex_contacts_v1'];
+        let migrated = false;
+        legacyKeys.forEach(key => {
+            const data = localStorage.getItem(key);
+            if (data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        parsed.forEach(c => {
+                            if (!c.id) return;
+                            const exists = this.state.contacts.some(curr => curr.id === c.id);
+                            if (!exists) this.state.contacts.push(c);
+                        });
+                        migrated = true;
+                    }
+                    localStorage.removeItem(key);
+                } catch (e) {}
+            }
+        });
+        if (migrated) {
+            this.state.contacts.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+            localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+            console.log('App: Restoration/Migration complete.');
+        }
     },
 
     async logout() {
@@ -301,8 +328,9 @@ const App = {
 
         home() {
             const processingCount = this.state.uploadQueue.filter(q => q.status === 'Processing').length;
-            const event = this.state.activeEvent;
-            const contacts = this.state.contacts.filter(c => !event || c.eventId === event.id);
+            const contacts = (this.state.filterAllEvents || !event) 
+                ? this.state.contacts 
+                : this.state.contacts.filter(c => c.eventId === event.id);
 
             const now = new Date();
             let eventStatus = 'Upcoming';
@@ -363,7 +391,10 @@ const App = {
                         `}
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="font-size: 16px; font-family: 'Outfit';">Recent Contacts</h3>
+                            <h3 style="font-size: 16px; font-family: 'Outfit';">${this.state.filterAllEvents ? 'All History' : 'Recent Contacts'}</h3>
+                            <button class="btn-secondary" style="font-size: 10px; padding: 5px 10px;" onclick="App.toggleGlobalFilter()">
+                                ${this.state.filterAllEvents ? 'Show Current Show' : 'Show All Events'}
+                            </button>
                         </div>
 
                         <div id="contacts-list">
@@ -522,11 +553,19 @@ const App = {
 
         contacts() {
             const event = this.state.activeEvent;
-            const contacts = this.state.contacts.filter(c => !event || c.eventId === event.id);
+            const contacts = (this.state.filterAllEvents || !event) 
+                ? this.state.contacts 
+                : this.state.contacts.filter(c => c.eventId === event.id);
 
             return `
                 <div class="screen contacts-screen" style="padding-top: 20px;">
                     <div class="screen-content" style="padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="font-family: 'Outfit'; font-size: 20px;">Leads</h2>
+                            <button class="btn-secondary" style="font-size: 11px; padding: 6px 12px; border-radius: 8px;" onclick="App.toggleGlobalFilter()">
+                                ${this.state.filterAllEvents ? 'Show Current Only' : 'View Global History'}
+                            </button>
+                        </div>
                         <div class="form-group" style="margin-bottom: 20px;">
                             <div style="position: relative;">
                                 <i data-lucide="search" style="position: absolute; left: 12px; top: 12px; width: 16px; opacity: 0.5;"></i>
@@ -539,7 +578,14 @@ const App = {
                     </div>
                 </div>
             `;
-        }
+        this.renderScreen(this.state.currentScreen);
+    },
+    
+    toggleGlobalFilter() {
+        this.state.filterAllEvents = !this.state.filterAllEvents;
+        localStorage.setItem('bizconnex_filter_all', this.state.filterAllEvents);
+        this.renderScreen(this.state.currentScreen);
+        this.showToast(this.state.filterAllEvents ? 'Viewing contacts from all events' : 'Filtering by current event');
     },
 
     filterContacts(query) {
@@ -604,20 +650,35 @@ const App = {
             this.state.isAdmin = false;
             localStorage.setItem('bizconnex_user', JSON.stringify(user));
 
-            // Proactive Data Refresh after login
+            // --- Proactive Soft Sync after login ---
             if (window.Cloud) {
                 this.showToast('Synchronizing access...');
                 try {
-                    const [events, contacts] = await Promise.all([
+                    const [events, cloudContacts] = await Promise.all([
                         window.Cloud.getEvents(),
                         window.Cloud.getContacts()
                     ]);
+                    
                     this.state.events = events;
-                    this.state.contacts = contacts;
                     localStorage.setItem('bizconnex_events', JSON.stringify(events));
-                    localStorage.setItem('bizconnex_contacts', JSON.stringify(contacts));
+
+                    // SOFT SYNC: Merge cloud contacts into local state instead of replacing
+                    if (cloudContacts && cloudContacts.length > 0) {
+                        cloudContacts.forEach(cc => {
+                            const idx = this.state.contacts.findIndex(c => c.id === cc.id);
+                            if (idx !== -1) {
+                                // Update existing
+                                this.state.contacts[idx] = { ...this.state.contacts[idx], ...cc };
+                            } else {
+                                // Add new
+                                this.state.contacts.unshift(cc);
+                            }
+                        });
+                        this.state.contacts.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                        localStorage.setItem('bizconnex_contacts', JSON.stringify(this.state.contacts));
+                    }
                 } catch (e) {
-                    console.warn('App: Post-login sync failed', e);
+                    console.warn('App: Post-login sync limited', e);
                 }
             }
 
