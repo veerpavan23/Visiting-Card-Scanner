@@ -146,7 +146,7 @@ h1, h2, h3, .brand {
 }
 
 /* Global Header Styles */
-.nav-header {
+.header {
     height: 64px;
     padding: 0 16px;
     display: flex;
@@ -164,7 +164,7 @@ h1, h2, h3, .brand {
 .header-side {
     display: flex;
     align-items: center;
-    min-width: 44px;
+    min-width: 60px;
 }
 .header-brand {
     font-family: 'Outfit';
@@ -187,21 +187,21 @@ h1, h2, h3, .brand {
 
 .badge {
     position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 18px;
-    height: 18px;
-    background: var(--danger);
-    border-radius: 9px;
-    border: 1.5px solid var(--bg-primary);
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    background: #ff4757;
+    border-radius: 50%;
+    border: 1px solid var(--bg-primary);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-    font-weight: 900;
+    font-size: 9px;
+    font-weight: 800;
     color: #fff;
-    padding: 2px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui;
+    z-index: 10;
 }
 
 .pulsing {

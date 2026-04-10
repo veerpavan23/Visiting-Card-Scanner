@@ -25,18 +25,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 
-    <link rel="stylesheet" href="styles.css?v=16.00">
+    <link rel="stylesheet" href="styles.css?v=16.10">
  </head>
  <body>
       <div id="app" class="app-container">
           <header id="global-header" class="header hidden">
-              <div id="header-left"></div>
-              <div id="header-title" class="header-title">Biz<span class="text-accent">connex</span></div>
-              <div class="header-right">
-                  <div class="header-btn" onclick="App.showNotifications()">
+              <div id="header-left" class="header-side"></div>
+              <div id="header-brand" class="header-brand">Biz<span class="text-accent">connex</span></div>
+              <div class="header-side" style="justify-content: flex-end;">
+                  <button class="header-btn" onclick="App.showNotifications()">
                       <i data-lucide="bell"></i>
                       <div id="notif-badge" class="badge hidden"></div>
-                  </div>
+                  </button>
               </div>
           </header>
 
@@ -71,9 +71,9 @@
 
      <!-- Scripts -->
      <!-- Firebase Cloud Bridge (module - runs async) -->
-      <script type="module" src="firebase-config.js?v=16.00"></script>
+      <script type="module" src="firebase-config.js?v=16.10"></script>
      <!-- App Logic -->
-      <script src="app.js?v=16.00"></script>
+      <script src="app.js?v=16.10"></script>
      <script>
           // --- THE KILL-SWITCH: Force Cache Clear & Disable SW ---
           if ('serviceWorker' in navigator) {

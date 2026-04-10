@@ -1694,6 +1694,13 @@ END:VCARD`;
     monitorEventStatuses() {
         if (!this.state.events || !this.state.events.length) return;
         
+        // --- REAL-TIME WATCHDOG ---
+        // If listeners died or handshake was never completed, force a periodic re-sync attempt
+        if (!this.state.cloudListenersActive && window.FirebaseDB) {
+            console.log('App Watchdog: Listeners inactive. Attempting Re-Sync...');
+            this.syncCloud();
+        }
+
         const now = new Date();
         this.state.events.forEach(e => {
             const start = new Date(e.start);
@@ -1707,13 +1714,12 @@ END:VCARD`;
             // Notification on Transition
             if (lastStatus && lastStatus !== currentStatus) {
                 if (currentStatus === 'live') {
-                    this.addNotification('Event is LIVE!', `Trade show "${e.name}" has started. You can now begin scanning cards.`);
+                    this.addNotification('Event is LIVE!', `Trade show "${e.name}" has started.`);
                     this.showToast(`LIVE: ${e.name}`, 'info');
                 } else if (currentStatus === 'complete') {
-                    this.addNotification('Event Completed', `Trade show "${e.name}" has ended. Scanner access is now read-only for this event.`);
+                    this.addNotification('Event Completed', `Trade show "${e.name}" has ended.`);
                 }
                 
-                // Refresh UI if on relevant screen
                 if (this.state.currentScreen === 'home' || this.state.currentScreen === 'eventSelect') {
                     this.renderScreen(this.state.currentScreen);
                 }
