@@ -401,7 +401,12 @@ const App = {
 
                         <div id="contacts-list">
                             ${this.state.uploadQueue.filter(q => q.status !== 'Updated').map(q => this.renderQueueItem(q)).join('')}
-                            ${contacts.slice(0, 10).map(c => this.renderContactItem(c)).join('')}
+                            ${contacts.length === 0 && !this.state.filterAllEvents && event ? `
+                                <div style="text-align: center; padding: 30px; border: 1px dashed var(--glass-border); border-radius: 12px; opacity: 0.6;">
+                                    <p style="font-size: 11px;">No scans for <b>${event.name}</b>.</p>
+                                    <button class="btn-secondary" style="margin-top: 10px; font-size: 9px; padding: 4px 10px;" onclick="App.toggleGlobalFilter()">Show All Events</button>
+                                </div>
+                            ` : contacts.slice(0, 10).map(c => this.renderContactItem(c)).join('')}
                         </div>
 
                         <div style="text-align: center; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px; opacity: 0.3;">
