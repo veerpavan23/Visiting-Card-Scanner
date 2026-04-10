@@ -974,12 +974,41 @@ const App = {
         const reviewControls = document.getElementById('review-controls');
         const mask = document.getElementById('camera-mask');
 
-        if (!video || !canvas) return;
+        if (!video || !canvas || !mask) return;
 
-        // Freeze frame
-        canvas.width = video.videoWidth; 
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        // Calculate logical vs real coordinates for cropping
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const cw = video.clientWidth;
+        const ch = video.clientHeight;
+
+        // Object-fit: cover logic
+        const scale = Math.max(cw / vw, ch / vh);
+        const rw = vw * scale; // rendered width
+        const rh = vh * scale; // rendered height
+        const xOffset = (rw - cw) / 2;
+        const yOffset = (rh - ch) / 2;
+
+        // Focus box (mask) rect
+        const maskRect = mask.getBoundingClientRect();
+        const videoRect = video.getBoundingClientRect();
+
+        // Coordinates relative to the video element
+        const relX = maskRect.left - videoRect.left;
+        const relY = maskRect.top - videoRect.top;
+
+        // Map to source resolution
+        const sx = (relX + xOffset) / scale;
+        const sy = (relY + yOffset) / scale;
+        const sw = maskRect.width / scale;
+        const sh = maskRect.height / scale;
+
+        // Set canvas to focus box aspect ratio
+        canvas.width = sw;
+        canvas.height = sh;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
         
         const imageData = canvas.toDataURL('image/jpeg', 0.9);
         this.state.tempImage = imageData;
