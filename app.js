@@ -42,7 +42,7 @@ const App = {
 
     // --- Initialization ---
     init() {
-        console.log('✅ Bizconnex AI Engine Active (v15.00)');
+        console.log('✅ Bizconnex AI Engine Active (v16.00)');
         this.migrateLegacyData();
         
         // --- PROACTIVE MONITOR INIT ---
@@ -51,7 +51,6 @@ const App = {
             // Self-Sync: If we have a cached user, immediately try to refresh their profile from the cached users list
             const localMatch = this.state.users.find(u => this.normalizeMobile(u.mobile) === normUser);
             if (localMatch) {
-                console.log('App: Performing Boot-time Self-Sync...');
                 this.state.currentUser = localMatch;
                 localStorage.setItem('bizconnex_user', JSON.stringify(localMatch));
             }
@@ -73,7 +72,21 @@ const App = {
             });
         }
 
-        this.syncCloud(); 
+        // RACE CONDITION FIX: Wait for Firebase ready event, but try once immediately just in case
+        console.log('App: Waiting for Firebase Cloud Bridge signal...');
+        window.addEventListener('BizconnexFirebaseReady', () => {
+            console.log('App: Firebase Signal Received. Initializing Listeners.');
+            this.syncCloud();
+        });
+        
+        // Safety Fallback (Retry if event missed)
+        setTimeout(() => {
+            if (!this.state.cloudListenersActive) {
+                console.warn('App: Initial sync signal missed. Manual sync trigger.');
+                this.syncCloud();
+            }
+        }, 3000);
+
         this.checkConnectivity();
         this.injectDebugUI(); 
         this.state.isInitialized = true;
@@ -1576,9 +1589,14 @@ END:VCARD`;
         }
     },
 
-    async syncCloud() {
+    async syncCloud(retryCount = 0) {
         if (window.FirebaseDB && window.db) {
+            console.log('App: Cloud Bridge Handshake Successful.');
+            this.state.cloudListenersActive = true;
+            
             const { ref, onValue } = window.FirebaseDB;
+            
+            // --- Events Listener ---
             onValue(ref(window.db, 'events_v1'), snapshot => {
                 if (snapshot.exists()) {
                     const allEvents = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -1598,58 +1616,55 @@ END:VCARD`;
                         const newAssignments = currentlyAssigned.filter(id => !this.state.lastKnownEventIds.includes(id));
                         if (newAssignments.length > 0) {
                             const eventNames = allEvents.filter(e => newAssignments.includes(e.id)).map(e => e.name).join(', ');
-                            this.addNotification('New Event Assigned', `You have been authorized for: ${eventNames}. Tap to view.`);
-                            this.showToast('New Event Assigned!', 'success');
+                            this.addNotification('New Event Assigned', `Authorized for: ${eventNames}.`);
+                            this.showToast('Permissions Updated', 'success');
                             this.state.lastKnownEventIds = [...new Set([...this.state.lastKnownEventIds, ...currentlyAssigned])];
                             localStorage.setItem('bizconnex_known_events', JSON.stringify(this.state.lastKnownEventIds));
                         }
                     }
 
-                    // Reactive Refresh
                     if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                     if (this.state.currentScreen === 'home') this.renderScreen('home');
                 }
             });
+
+            // --- Users Listener (Deep Sync) ---
             onValue(ref(window.db, 'users_v1'), snapshot => {
                 if (snapshot.exists()) {
                     const allUsers = Object.values(snapshot.val());
                     this.state.users = allUsers;
                     localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
                     
-                    // DEEP REAKTIV SYNC: Refresh currentUser profile if it changed
                     if (this.state.currentUser) {
                         const updated = allUsers.find(u => this.normalizeMobile(u.mobile) === this.normalizeMobile(this.state.currentUser.mobile));
                         if (updated) {
                             const oldSerialized = JSON.stringify(this.state.currentUser);
                             const newSerialized = JSON.stringify(updated);
                             
-                            // Check for deep changes (assignments or metadata)
                             if (oldSerialized !== newSerialized) {
-                                console.log('App: Cloud Profile Change Detected. Updating local session...');
+                                console.log('App: Cloud Profile Change Detected.');
                                 
-                                // Logic for "New Event" notification based on profile assignments
                                 const oldEvents = (this.state.currentUser.assignedEvents || []).length;
                                 const newEventList = updated.assignedEvents || [];
                                 
                                 if (newEventList.length > oldEvents) {
-                                    this.addNotification('Event Access Updated', 'Your authorized trade show list has been updated by the administrator.');
-                                    this.showToast('Access Updated', 'info');
+                                    this.addNotification('Event Access Updated', 'New trade shows assigned to profile.');
+                                    this.showToast('Cloud Update Received', 'info');
                                 }
                                 
                                 this.state.currentUser = updated;
                                 localStorage.setItem('bizconnex_user', JSON.stringify(updated));
 
-                                // Refresh UI immediately if relevant
                                 if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                                 if (this.state.currentScreen === 'home') this.renderScreen('home');
                             }
                         }
                     }
-
-                    // Global refresh for screens that show multi-user lists (if any)
                     if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                 }
             });
+
+            // --- Contacts Listener ---
             onValue(ref(window.db, 'contacts_v1'), snapshot => {
                 if (snapshot.exists()) {
                     const cloudContacts = Object.values(snapshot.val());
@@ -1663,6 +1678,16 @@ END:VCARD`;
                     if (this.state.currentScreen === 'home') this.renderScreen('home');
                 }
             });
+            
+        } else {
+            // RETRY LOGIC FOR RACE CONDITION
+            if (retryCount < 10) {
+                console.warn(`App: Cloud Bridge NOT YET ready. Retrying sync (${retryCount + 1}/10)...`);
+                setTimeout(() => this.syncCloud(retryCount + 1), 1000);
+            } else {
+                console.error('App: Cloud Bridge Handshake FAILED after 10 retries.');
+                this.showToast('Cloud Offline: Real-time Disabled', 'error');
+            }
         }
     },
 

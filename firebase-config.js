@@ -147,3 +147,7 @@ const Cloud = {
 window.Cloud = Cloud;
 window.db = db;
 window.FirebaseDB = { onValue, ref, remove, get, child, set, push };
+
+// --- EVENT DISPATCH FOR RACE CONDITION FIX ---
+console.log('Firebase Cloud Bridge: DISPATCHING READY EVENT');
+window.dispatchEvent(new CustomEvent('BizconnexFirebaseReady'));

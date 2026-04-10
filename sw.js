@@ -1,56 +1,27 @@
 /**
- * Liquid Premium - Network-First Service Worker (v10.1)
- * This strategy prioritizes the fresh code from the internet.
- * It ONLY uses the cache if the user is offline.
+ * Bizconnex Sync Rescue - Service Worker (v99.0)
+ * PURGE MODE: Dedicated to clearing old caches and unregistering itself.
  */
 
-const CACHE_NAME = 'vcard-scanner-v10.1';
-const ASSETS = [
-    './styles.css?v=8.0',
-    './app.js?v=8.0',
-    './firebase-config.js?v=8.0',
-    './manifest.json',
-    './icon.png'
-];
-
-// 1. Install Event: Cache only the assets (excluding index.html)
-self.addEventListener('install', (event) => {
+self.addEventListener('install', (e) => {
     self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
-        })
-    );
 });
 
-// 2. Activate Event: Cleanup old caches
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
         caches.keys().then((keys) => {
-            return Promise.all(
-                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-            );
+            return Promise.all(keys.map(key => caches.delete(key)));
+        }).then(() => {
+            return self.registration.unregister();
+        }).then(() => {
+            return self.clients.matchAll();
+        }).then((clients) => {
+            clients.forEach(client => client.navigate(client.url));
         })
     );
 });
 
-// 3. Fetch Event: NETWORK-FIRST Strategy
+// Bypass everything to ensure network-only during rescue
 self.addEventListener('fetch', (event) => {
-    // Skip external URLs and non-GET requests
-    if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) return;
-
-    event.respondWith(
-        fetch(event.request)
-            .then((response) => {
-                // If network works, put a clone in the cache and return
-                return caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, response.clone());
-                    return response;
-                });
-            })
-            .catch(() => {
-                // If network fails (Offline), use the cache
-                return caches.match(event.request);
-            })
-    );
+    return; // Let the browser handle normally
 });

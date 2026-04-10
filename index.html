@@ -1,89 +1,92 @@
-    <title>Bizconnex Card Scanner | Global Business Networking</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Bizconnex | Enterprise Card Scanner</title>
     
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    
-    <!-- Meta for PWA-like appearance -->
-    <meta name="theme-color" content="#aa0f1d">
+    <!-- PWA / Mobile Web App Meta -->
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <!-- PWA Manifest & Icons -->
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
     
-    <!-- Google Fonts: Outfit (Modern Business) & Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Lucide Icons -->
+    <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Cropper.js (For Image Adjustments) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    
-    <!-- SheetJS (Excel Export) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 
-    <link rel="stylesheet" href="styles.css?v=15.10">
+    <link rel="stylesheet" href="styles.css?v=16.00">
  </head>
  <body>
-     <div id="app" class="app-container">
-         <!-- Global Header (Dynamic Slots) -->
-         <header id="global-header" class="nav-header hidden">
-             <div id="header-left" class="header-side" style="flex: 1; display: flex; align-items: center;"></div>
-             <div id="header-title" class="header-brand" style="flex: 2; text-align: center;">Biz<span class="text-accent">connex</span></div>
-             <div id="header-right" class="header-side" style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end;">
-                 <button class="header-btn" onclick="App.showNotifications()">
-                     <i data-lucide="bell"></i>
-                     <span id="notif-badge" class="badge pulsing hidden"></span>
-                 </button>
-             </div>
-         </header>
+      <div id="app" class="app-container">
+          <header id="global-header" class="header hidden">
+              <div id="header-left"></div>
+              <div id="header-title" class="header-title">Biz<span class="text-accent">connex</span></div>
+              <div class="header-right">
+                  <div class="header-btn" onclick="App.showNotifications()">
+                      <i data-lucide="bell"></i>
+                      <div id="notif-badge" class="badge hidden"></div>
+                  </div>
+              </div>
+          </header>
 
-         <!-- Screens will be dynamically injected here -->
-         <main id="screen-container"></main>
+          <main id="screen-container">
+              <!-- Screens rendered here -->
+          </main>
 
-         <!-- Global Navigation (Hidden on Splash/Onboarding) -->
-         <nav id="global-nav" class="nav-bar hidden">
-             <button class="nav-item active" data-screen="home">
-                 <i data-lucide="home"></i>
-                 <span>Home</span>
-             </button>
-             <button class="nav-item" data-screen="capture">
-                 <div class="scan-button-fab">
-                     <i data-lucide="camera"></i>
-                 </div>
-             </button>
-             <button class="nav-item" data-screen="contacts">
-                 <i data-lucide="users"></i>
-                 <span>Contacts</span>
-             </button>
-         </nav>
-         
-         <!-- Action Overlays (Toasts, Modals) -->
-         <div id="notif-container"></div>
-     </div>
+          <nav id="global-nav" class="nav-bar hidden">
+              <div class="nav-item" data-screen="home">
+                  <i data-lucide="home"></i>
+                  <span>Home</span>
+              </div>
+              <div class="nav-item" data-screen="contacts">
+                  <i data-lucide="users"></i>
+                  <span>Leads</span>
+              </div>
+              <div class="nav-fab" onclick="App.navigateTo('capture')">
+                  <div class="fab-circle">
+                      <i data-lucide="camera"></i>
+                  </div>
+              </div>
+              <div class="nav-item" data-screen="eventSelect">
+                  <i data-lucide="calendar"></i>
+                  <span>Shows</span>
+              </div>
+              <div class="nav-item" data-screen="export">
+                  <i data-lucide="download"></i>
+                  <span>Export</span>
+              </div>
+          </nav>
+      </div>
 
      <!-- Scripts -->
      <!-- Firebase Cloud Bridge (module - runs async) -->
-      <script type="module" src="firebase-config.js?v=15.10"></script>
+      <script type="module" src="firebase-config.js?v=16.00"></script>
      <!-- App Logic -->
-      <script src="app.js?v=15.10"></script>
+      <script src="app.js?v=16.00"></script>
      <script>
           // --- THE KILL-SWITCH: Force Cache Clear & Disable SW ---
           if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(registrations => {
-                  for(let registration of registrations) { registration.unregister(); }
-              });
+               navigator.serviceWorker.getRegistrations().then(regs => {
+                   for(let r of regs) { r.unregister(); }
+               });
           }
           if ('caches' in window) {
-              caches.keys().then(names => {
-                  for (let name of names) caches.delete(name);
-              });
+               caches.keys().then(ns => {
+                   for (let n of ns) caches.delete(n);
+               });
           }
+          console.log('App: v16.00 Sync Rescue Protocol Active');
 
           // --- protocol Warning ---
           if (window.location.protocol === 'file:') {
@@ -93,5 +96,5 @@
               document.body.prepend(b);
           }
      </script>
-</body>
-</html>
+ </body>
+ </html>
