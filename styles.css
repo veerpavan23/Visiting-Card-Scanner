@@ -104,6 +104,7 @@ h1, h2, h3, .brand {
     box-shadow: 0 0 100px rgba(0,0,0,0.5);
     overflow: hidden;
     padding-top: 64px; /* Space for Fixed Header */
+    padding-bottom: 70px; /* Space for Fixed Navigation */
 }
 
 /* Screen Transitions */
@@ -300,18 +301,21 @@ h1, h2, h3, .brand {
 
 /* Navigation Bar */
 .nav-bar {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
     width: 100%;
+    max-width: 500px;
     height: 70px;
-    background: rgba(25, 25, 25, 0.8);
-    backdrop-filter: blur(15px);
+    background: rgba(15, 15, 15, 0.95);
+    backdrop-filter: blur(20px);
     display: flex;
     justify-content: space-around;
     align-items: center;
     border-top: 1px solid var(--glass-border);
-    padding-bottom: 5px;
-    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 5px);
+    z-index: 1500;
 }
 
 .nav-item {
