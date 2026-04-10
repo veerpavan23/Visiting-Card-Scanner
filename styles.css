@@ -187,13 +187,21 @@ h1, h2, h3, .brand {
 
 .badge {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 8px;
-    height: 8px;
+    top: 0;
+    right: 0;
+    min-width: 18px;
+    height: 18px;
     background: var(--danger);
-    border-radius: 50%;
-    border: 2px solid var(--bg-primary);
+    border-radius: 9px;
+    border: 1.5px solid var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: #fff;
+    padding: 2px;
+    font-family: 'Inter', sans-serif;
 }
 
 .pulsing {

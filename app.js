@@ -155,6 +155,12 @@ const App = {
         if (!badge) return;
         const unread = this.state.notifications.filter(n => !n.read).length;
         badge.classList.toggle('hidden', unread === 0);
+        if (unread > 0) {
+            badge.innerText = unread > 9 ? '9+' : unread;
+            badge.classList.add('pulsing');
+        } else {
+            badge.classList.remove('pulsing');
+        }
     },
 
     showNotifications() {
