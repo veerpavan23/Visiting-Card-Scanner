@@ -42,13 +42,20 @@ const App = {
 
     // --- Initialization ---
     init() {
-        console.log('✅ Bizconnex AI Engine Active (v14.10)');
+        console.log('✅ Bizconnex AI Engine Active (v15.00)');
         this.migrateLegacyData();
         
         // --- PROACTIVE MONITOR INIT ---
-        // Pre-fill existing event IDs so we only notify on truly NEW ones
         const normUser = this.state.currentUser ? this.normalizeMobile(this.state.currentUser.mobile) : null;
         if (normUser) {
+            // Self-Sync: If we have a cached user, immediately try to refresh their profile from the cached users list
+            const localMatch = this.state.users.find(u => this.normalizeMobile(u.mobile) === normUser);
+            if (localMatch) {
+                console.log('App: Performing Boot-time Self-Sync...');
+                this.state.currentUser = localMatch;
+                localStorage.setItem('bizconnex_user', JSON.stringify(localMatch));
+            }
+
             this.state.lastKnownEventIds = this.state.events.filter(e => {
                 const assignedIds = this.state.currentUser.assignedEvents || [];
                 const isAuthByNum = e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
@@ -56,7 +63,6 @@ const App = {
             }).map(e => e.id);
             localStorage.setItem('bizconnex_known_events', JSON.stringify(this.state.lastKnownEventIds));
             
-            // Pre-fill current statuses to detect transitions later
             this.state.events.forEach(e => {
                 const now = new Date();
                 const start = new Date(e.start);
@@ -75,7 +81,6 @@ const App = {
         this.bindEvents();
         this.processQueue(); 
 
-        // Start Background Monitor (Every 60s)
         setInterval(() => this.monitorEventStatuses(), 60000);
 
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
@@ -1605,30 +1610,37 @@ END:VCARD`;
                     this.state.users = allUsers;
                     localStorage.setItem('bizconnex_users', JSON.stringify(this.state.users));
                     
-                    // REAKTIVE SYNC: Refresh currentUser profile if it changed
+                    // DEEP REAKTIV SYNC: Refresh currentUser profile if it changed
                     if (this.state.currentUser) {
                         const updated = allUsers.find(u => this.normalizeMobile(u.mobile) === this.normalizeMobile(this.state.currentUser.mobile));
                         if (updated) {
-                            // Check if new events assigned (DEEP REAKTIVITY FIX)
-                            const oldEvents = (this.state.currentUser.assignedEvents || []).length;
-                            const newEventList = updated.assignedEvents || [];
+                            const oldSerialized = JSON.stringify(this.state.currentUser);
+                            const newSerialized = JSON.stringify(updated);
                             
-                            if (newEventList.length > oldEvents) {
-                                this.addNotification('New Event Assigned', 'A new trade show has been assigned to your profile.');
-                                this.showToast('Permissions Updated', 'info');
+                            // Check for deep changes (assignments or metadata)
+                            if (oldSerialized !== newSerialized) {
+                                console.log('App: Cloud Profile Change Detected. Updating local session...');
                                 
-                                // FORCE REFRESH IF ON SELECT SCREEN
-                                if (this.state.currentScreen === 'eventSelect') {
-                                    setTimeout(() => this.renderScreen('eventSelect'), 500);
+                                // Logic for "New Event" notification based on profile assignments
+                                const oldEvents = (this.state.currentUser.assignedEvents || []).length;
+                                const newEventList = updated.assignedEvents || [];
+                                
+                                if (newEventList.length > oldEvents) {
+                                    this.addNotification('Event Access Updated', 'Your authorized trade show list has been updated by the administrator.');
+                                    this.showToast('Access Updated', 'info');
                                 }
+                                
+                                this.state.currentUser = updated;
+                                localStorage.setItem('bizconnex_user', JSON.stringify(updated));
+
+                                // Refresh UI immediately if relevant
+                                if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
+                                if (this.state.currentScreen === 'home') this.renderScreen('home');
                             }
-                            
-                            this.state.currentUser = updated;
-                            localStorage.setItem('bizconnex_user', JSON.stringify(updated));
                         }
                     }
 
-                    // Reactive Refresh
+                    // Global refresh for screens that show multi-user lists (if any)
                     if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                 }
             });
