@@ -6,7 +6,9 @@ window.Admin = {
         events: JSON.parse(localStorage.getItem('admin_events') || '[]'),
         users: JSON.parse(localStorage.getItem('admin_users') || '[]'),
         contacts: [],
-        charts: {}
+        charts: {},
+        leadsLimit: 50,
+        leadsSearchQuery: ''
     },
 
     // --- Initialization ---
@@ -51,7 +53,7 @@ window.Admin = {
                 } else {
                     this.state.contacts = [];
                 }
-                if (this.state.currentTab === 'analytics' || this.state.currentTab === 'dashboard') this.refreshActiveView();
+                if (this.state.currentTab === 'analytics' || this.state.currentTab === 'dashboard' || this.state.currentTab === 'leads') this.refreshActiveView();
             });
         }
 
@@ -77,6 +79,7 @@ window.Admin = {
         switch(tab) {
             case 'dashboard': this.renderDashboard(); break;
             case 'events': this.renderEvents(); break;
+            case 'leads': this.renderLeads(); break;
             case 'users': this.renderUsers(); break;
             case 'analytics': this.renderAnalytics(); break;
         }
@@ -335,6 +338,119 @@ window.Admin = {
             `;
         }).join('');
         if (window.lucide) lucide.createIcons();
+    },
+
+    renderLeads() {
+        const root = document.getElementById('admin-content-root');
+        root.innerHTML = `
+            <header style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px;">
+                <div>
+                    <h1 style="font-size: 32px; font-family: 'Outfit';">Leads Management</h1>
+                    <p style="color: var(--text-secondary);">Review and manage all captured contact data across the network.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-secondary" style="color: #2ecc71; border-color: #2ecc71;" onclick="Admin.exportContacts()">
+                        <i data-lucide="download"></i> Export Filtered (XLSX)
+                    </button>
+                </div>
+            </header>
+
+            <div class="premium-card" style="margin-bottom: 25px;">
+                <div style="position: relative;">
+                    <i data-lucide="search" style="position: absolute; left: 16px; top: 14px; width: 18px; opacity: 0.5;"></i>
+                    <input type="text" class="form-input" placeholder="Search by name, company, email, or event..." 
+                           style="padding-left: 48px; background: rgba(0,0,0,0.2);" 
+                           value="${this.state.leadsSearchQuery}"
+                           oninput="Admin.filterLeads(this.value)">
+                </div>
+            </div>
+
+            <div class="premium-card" style="padding: 0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background: rgba(255,255,255,0.05);">
+                        <tr>
+                            <th style="padding: 15px 24px;">Contact Name</th>
+                            <th style="padding: 15px 24px;">Company</th>
+                            <th style="padding: 15px 24px;">Event Source</th>
+                            <th style="padding: 15px 24px;">Researcher</th>
+                            <th style="padding: 15px 24px;">Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leads-list">
+                        <!-- Leads injected here -->
+                    </tbody>
+                </table>
+                <div id="leads-pagination-root"></div>
+            </div>
+        `;
+        this.populateLeads();
+    },
+
+    populateLeads() {
+        const list = document.getElementById('leads-list');
+        const paginationRoot = document.getElementById('leads-pagination-root');
+        if (!list) return;
+
+        const q = this.state.leadsSearchQuery.toLowerCase();
+        const filtered = this.state.contacts.filter(c => 
+            (c.name || '').toLowerCase().includes(q) || 
+            (c.company || '').toLowerCase().includes(q) || 
+            (c.email || '').toLowerCase().includes(q) ||
+            (c.eventName || '').toLowerCase().includes(q) ||
+            (c.researcher || '').toLowerCase().includes(q)
+        ).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (!filtered.length) {
+            list.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 60px; opacity: 0.3;">No leads found matching your criteria.</td></tr>`;
+            paginationRoot.innerHTML = '';
+            return;
+        }
+
+        const visibleLeads = filtered.slice(0, this.state.leadsLimit);
+        list.innerHTML = visibleLeads.map(c => `
+            <tr style="border-top: 1px solid var(--glass-border);">
+                <td style="padding: 15px 24px;">
+                    <div style="font-weight: 700;">${c.name}</div>
+                    <div style="font-size: 11px; opacity: 0.6;">${c.email || 'No Email'}</div>
+                </td>
+                <td style="padding: 15px 24px; font-size: 13px;">${c.company}</td>
+                <td style="padding: 15px 24px;"><span style="background: rgba(52, 152, 219, 0.1); color: var(--admin-accent); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">${c.eventName}</span></td>
+                <td style="padding: 15px 24px; font-size: 13px;">${c.researcher || c.userName || 'System'}</td>
+                <td style="padding: 15px 24px; font-size: 12px; opacity: 0.7;">${new Date(c.timestamp).toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        if (filtered.length > this.state.leadsLimit) {
+            paginationRoot.innerHTML = `
+                <div class="admin-pagination">
+                    <p class="pagination-status">Showing ${this.state.leadsLimit} of ${filtered.length.toLocaleString()} total leads</p>
+                    <button class="load-more-btn" onclick="Admin.loadMoreLeads()">
+                        Load More Records <i data-lucide="chevron-down" style="width: 14px;"></i>
+                    </button>
+                </div>
+            `;
+        } else if (filtered.length > 0) {
+            paginationRoot.innerHTML = `
+                <div class="admin-pagination" style="justify-content: center; opacity: 0.5;">
+                    <p class="pagination-status">All ${filtered.length} records displayed.</p>
+                </div>
+            `;
+        } else {
+            paginationRoot.innerHTML = '';
+        }
+
+        if (window.lucide) lucide.createIcons();
+    },
+
+    loadMoreLeads() {
+        this.state.leadsLimit += 50;
+        this.populateLeads();
+    },
+
+    filterLeads(query) {
+        this.state.leadsSearchQuery = query;
+        this.state.leadsLimit = 50; // Reset limit on search
+        this.populateLeads();
     },
 
     // --- Bulk Import Logic ---

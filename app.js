@@ -26,7 +26,9 @@ const App = {
         placeholders: [
             { id: 'p1', name: 'Alaric Chen', company: 'Nexus Ventures', designation: 'Managing Director', phone: '+1 555-0102', email: 'alaric@nexus.vc', website: 'nexus.vc', address: 'Sand Hill Rd, Menlo Park', status: 'Updated', eventName: 'Global Tech Expo', timestamp: Date.now() },
             { id: 'p2', name: 'Elena Rodriguez', company: 'Stellar Dynamics', designation: 'Chief Architect', phone: '+1 555-0199', email: 'elena@stellar.io', website: 'stellar.io', address: 'Innovation Way, Austin', status: 'Updated', eventName: 'Bizconnex Summit', timestamp: Date.now() }
-        ]
+        ],
+        homeLimit: 10,
+        contactsLimit: 20
     },
 
     config: {
@@ -406,8 +408,17 @@ const App = {
                                     <p style="font-size: 11px;">No scans for <b>${event.name}</b>.</p>
                                     <button class="btn-secondary" style="margin-top: 10px; font-size: 9px; padding: 4px 10px;" onclick="App.toggleGlobalFilter()">Show All Events</button>
                                 </div>
-                            ` : contacts.slice(0, 10).map(c => this.renderContactItem(c)).join('')}
+                            ` : contacts.slice(0, this.state.homeLimit).map(c => this.renderContactItem(c)).join('')}
                         </div>
+
+                        ${contacts.length > this.state.homeLimit ? `
+                            <div class="load-more-container">
+                                <button class="load-more-btn" onclick="App.loadMoreHome()">
+                                    Load More Recent Scans <i data-lucide="chevron-down"></i>
+                                </button>
+                                <p class="pagination-status">Showing ${this.state.homeLimit} of ${contacts.length} captures</p>
+                            </div>
+                        ` : ''}
 
                         <div style="text-align: center; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px; opacity: 0.3;">
                             <button style="background: transparent; border: none; color: #ff4d4d; font-size: 10px; text-decoration: underline;" onclick="App.hardReset()">Wipe Local Data & Reset</button>
@@ -583,8 +594,17 @@ const App = {
                             </div>
                         </div>
                         <div id="contacts-full-list">
-                            ${contacts.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No contacts captured yet.</div>' : contacts.map(c => this.renderContactItem(c)).join('')}
+                            ${contacts.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No contacts captured yet.</div>' : contacts.slice(0, this.state.contactsLimit).map(c => this.renderContactItem(c)).join('')}
                         </div>
+
+                        ${contacts.length > this.state.contactsLimit ? `
+                            <div class="load-more-container">
+                                <button class="load-more-btn" onclick="App.loadMoreContacts()">
+                                    Load More Leads <i data-lucide="chevron-down"></i>
+                                </button>
+                                <p class="pagination-status">Showing ${this.state.contactsLimit} of ${contacts.length} total history</p>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -593,9 +613,21 @@ const App = {
     
     toggleGlobalFilter() {
         this.state.filterAllEvents = !this.state.filterAllEvents;
+        this.state.homeLimit = 10;
+        this.state.contactsLimit = 20;
         localStorage.setItem('bizconnex_filter_all', this.state.filterAllEvents);
         this.renderScreen(this.state.currentScreen);
         this.showToast(this.state.filterAllEvents ? 'Viewing contacts from all events' : 'Filtering by current event');
+    },
+
+    loadMoreHome() {
+        this.state.homeLimit += 10;
+        this.renderScreen('home');
+    },
+
+    loadMoreContacts() {
+        this.state.contactsLimit += 20;
+        this.renderScreen('contacts');
     },
 
     filterContacts(query) {
@@ -603,12 +635,31 @@ const App = {
         const event = this.state.activeEvent;
         const myContacts = this.state.contacts.filter(c => this.isAuthorizedForContact(c));
         const filtered = myContacts.filter(c => 
-            (!event || c.eventId === event.id) && 
+            (this.state.filterAllEvents || !event || c.eventId === event.id) && 
             ((c.name || '').toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
         );
         const list = document.getElementById('contacts-full-list');
         if (list) {
-            list.innerHTML = filtered.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No matching leads.</div>' : filtered.map(c => this.renderContactItem(c)).join('');
+            // Render limited set
+            list.innerHTML = filtered.length === 0 ? '<div style="text-align: center; padding: 60px; opacity: 0.3;">No matching leads.</div>' : filtered.slice(0, this.state.contactsLimit).map(c => this.renderContactItem(c)).join('');
+            
+            // Handle pagination button in search view
+            let container = list.nextElementSibling;
+            if (container && container.classList.contains('load-more-container')) {
+                container.remove();
+            }
+            
+            if (filtered.length > this.state.contactsLimit) {
+                const moreHtml = `
+                    <div class="load-more-container">
+                        <button class="load-more-btn" onclick="App.loadMoreContacts()">
+                            Load More Matches <i data-lucide="chevron-down"></i>
+                        </button>
+                        <p class="pagination-status">Showing ${this.state.contactsLimit} of ${filtered.length} matches</p>
+                    </div>
+                `;
+                list.insertAdjacentHTML('afterend', moreHtml);
+            }
             if (window.lucide) lucide.createIcons();
         }
     },
