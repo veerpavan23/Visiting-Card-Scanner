@@ -436,69 +436,71 @@ const App = {
             const isSyncing = !this.state.events.length && window.Cloud;
 
             return `
-                <div class="screen event-select-screen" style="padding: 24px; padding-top: 20px;">
-                    <div style="display:flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
-                        <button class="btn-secondary" style="padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" onclick="App.syncCloud(); App.showToast('Refreshing events...')">
-                            <i data-lucide="rotate-cw" style="width: 18px;"></i>
-                        </button>
-                    </div>
-                    
-                    <div style="margin-bottom: 30px;">
-                        <h2 style="font-family: 'Outfit'; font-size: 26px;">Select Event</h2>
-                        <p style="color: var(--text-secondary); font-size: 13px;">Choose an authorized trade show to begin scanning.</p>
-                    </div>
+                <div class="screen event-select-screen">
+                    <div class="screen-content">
+                        <div style="display:flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
+                            <button class="btn-secondary" style="padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" onclick="App.syncCloud(); App.showToast('Refreshing events...')">
+                                <i data-lucide="rotate-cw" style="width: 18px;"></i>
+                            </button>
+                        </div>
+                        
+                        <div style="margin-bottom: 30px;">
+                            <h2 style="font-family: 'Outfit'; font-size: 26px;">Select Event</h2>
+                            <p style="color: var(--text-secondary); font-size: 13px;">Choose an authorized trade show to begin scanning.</p>
+                        </div>
 
-                    ${isSyncing ? `
-                        <div style="text-align: center; padding: 40px; opacity: 0.6;">
-                            <div class="loader-spinner" style="margin: 0 auto 15px;"></div>
-                            <p style="font-size: 12px;">Connecting to Cloud...</p>
-                        </div>
-                    ` : userEvents.length === 0 ? `
-                        <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px dashed var(--glass-border);">
-                            <i data-lucide="shield-alert" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 15px;"></i>
-                            <p style="opacity: 0.5; font-size: 14px;">No trade shows assigned to your profile.<br>Tap the <i data-lucide="rotate-cw" style="width: 12px; display:inline;"></i> icon to refresh.</p>
-                        </div>
-                    ` : ''}
-                    <div style="display: flex; flex-direction: column; gap: 15px;">
-                        ${userEvents.map(e => {
-                            let statusText = 'Upcoming';
-                            let statusColor = '#f1c40f'; // Yellow
-                            let statusIcon = 'calendar';
-                            const start = new Date(e.start);
-                            const end = new Date(e.end);
-                            
-                            if (now >= start && now <= end) { 
-                                statusText = 'Live'; 
-                                statusColor = '#2ecc71'; 
-                                statusIcon = 'radio';
-                            }
-                            else if (now > end) { 
-                                statusText = 'Completed'; 
-                                statusColor = '#3498db'; 
-                                statusIcon = 'check-circle-2';
-                            }
-                            
-                            const isActive = this.state.activeEvent?.id === e.id;
-                            
-                            return `
-                            <div class="premium-card" onclick="App.selectEvent('${e.id}')" style="margin-bottom: 0; ${isActive ? 'border-color: var(--accent); background: rgba(239, 152, 19, 0.05);' : ''}">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 44px; height: 44px; background: ${statusColor}15; color: ${statusColor}; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                            <i data-lucide="${statusIcon}"></i>
+                        ${isSyncing ? `
+                            <div style="text-align: center; padding: 40px; opacity: 0.6;">
+                                <div class="loader-spinner" style="margin: 0 auto 15px;"></div>
+                                <p style="font-size: 12px;">Connecting to Cloud...</p>
+                            </div>
+                        ` : userEvents.length === 0 ? `
+                            <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px dashed var(--glass-border);">
+                                <i data-lucide="shield-alert" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 15px;"></i>
+                                <p style="opacity: 0.5; font-size: 14px;">No trade shows assigned to your profile.<br>Tap the <i data-lucide="rotate-cw" style="width: 12px; display:inline;"></i> icon to refresh.</p>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                            ${userEvents.map(e => {
+                                let statusText = 'Upcoming';
+                                let statusColor = '#f1c40f'; // Yellow
+                                let statusIcon = 'calendar';
+                                const start = new Date(e.start);
+                                const end = new Date(e.end);
+                                
+                                if (now >= start && now <= end) { 
+                                    statusText = 'Live'; 
+                                    statusColor = '#2ecc71'; 
+                                    statusIcon = 'radio';
+                                }
+                                else if (now > end) { 
+                                    statusText = 'Completed'; 
+                                    statusColor = '#3498db'; 
+                                    statusIcon = 'check-circle-2';
+                                }
+                                
+                                const isActive = this.state.activeEvent?.id === e.id;
+                                
+                                return `
+                                <div class="premium-card" onclick="App.selectEvent('${e.id}')" style="margin-bottom: 0; ${isActive ? 'border-color: var(--accent); background: rgba(239, 152, 19, 0.05);' : ''}">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="display: flex; align-items: center; gap: 15px;">
+                                            <div style="width: 44px; height: 44px; background: ${statusColor}15; color: ${statusColor}; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                                <i data-lucide="${statusIcon}"></i>
+                                            </div>
+                                            <div>
+                                                <h4 style="font-size: 15px; margin-bottom: 2px;">${e.name}</h4>
+                                                <p style="font-size: 11px; opacity: 0.5;">${isNaN(start) ? 'Date TBD' : start.toLocaleDateString() + ' - ' + end.toLocaleDateString()}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 style="font-size: 15px; margin-bottom: 2px;">${e.name}</h4>
-                                            <p style="font-size: 11px; opacity: 0.5;">${isNaN(start) ? 'Date TBD' : start.toLocaleDateString() + ' - ' + end.toLocaleDateString()}</p>
+                                        <div style="text-align: right;">
+                                            <span style="font-size: 9px; padding: 3px 8px; border-radius: 6px; background: ${statusColor}22; color: ${statusColor}; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${statusText}</span>
+                                            ${isActive ? '<div style="margin-top: 8px; color: var(--accent); font-size: 10px; font-weight: bold;">SELECTED</div>' : ''}
                                         </div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <span style="font-size: 9px; padding: 3px 8px; border-radius: 6px; background: ${statusColor}22; color: ${statusColor}; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${statusText}</span>
-                                        ${isActive ? '<div style="margin-top: 8px; color: var(--accent); font-size: 10px; font-weight: bold;">SELECTED</div>' : ''}
                                     </div>
                                 </div>
-                            </div>
-                        `}).join('')}
+                            `}).join('')}
+                        </div>
                     </div>
                 </div>
             `;
