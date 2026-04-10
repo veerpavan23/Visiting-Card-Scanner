@@ -578,7 +578,7 @@ const App = {
                     </div>
                 </div>
             `;
-        this.renderScreen(this.state.currentScreen);
+        },
     },
     
     toggleGlobalFilter() {
