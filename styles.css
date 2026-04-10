@@ -726,8 +726,8 @@ h1, h2, h3, .brand {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90%;
-    aspect-ratio: 1.6;
+    width: 65%;
+    aspect-ratio: 0.625;
     border: 2px solid rgba(255,255,255,0.3);
     border-radius: 12px;
     box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
