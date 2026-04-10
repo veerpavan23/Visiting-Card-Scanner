@@ -58,17 +58,17 @@ const App = {
     },
 
     async logout() {
-        App.showModal(
+        this.showModal(
             'Confirm Logout',
             'Are you sure you want to sign out of Bizconnex? Your local card queue will still be preserved.',
             [],
             async () => {
-                App.state.currentUser = null;
-                App.state.activeEvent = null;
+                this.state.currentUser = null;
+                this.state.activeEvent = null;
                 localStorage.removeItem('bizconnex_user');
                 localStorage.removeItem('bizconnex_active_event');
-                App.navigateTo('login');
-                App.showToast('Logged out successfully');
+                this.navigateTo('login');
+                this.showToast('Logged out successfully');
             },
             'Sign Out'
         );
@@ -126,10 +126,6 @@ const App = {
         if (body) body.innerHTML = `<div style="max-height: 400px; overflow-y: auto;">${notifHtml}</div>`;
     },
 
-    normalizeMobile(mobile) {
-        if (!mobile) return '';
-        return mobile.replace(/\D/g, '');
-    },
 
     bindEvents() {
         document.querySelectorAll('.nav-item').forEach(btn => {
@@ -190,45 +186,6 @@ const App = {
         if (window.lucide) lucide.createIcons();
     },
 
-    // --- Premium Modal System (Replaces Native Prompts) ---
-    showModal(title, message, fields, callback, submitLabel = 'Confirm') {
-        const overlay = document.createElement('div');
-        overlay.className = 'biz-modal-overlay animate__animated animate__fadeIn';
-        overlay.innerHTML = `
-            <div class="biz-modal animate__animated animate__zoomIn">
-                <h2 style="margin-bottom: 5px;">${title}</h2>
-                ${message ? `<p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">${message}</p>` : ''}
-                <div id="modal-fields-container">
-                    ${fields.map(f => `
-                        <div class="form-group">
-                            <label style="margin-bottom: 8px; display: block; font-size: 13px;">${f.label}</label>
-                            ${f.type === 'textarea' ? 
-                                `<textarea id="modal-${f.id}" class="form-input" style="height: 100px;" placeholder="${f.placeholder || ''}"></textarea>` :
-                                `<input type="${f.type}" id="modal-${f.id}" class="form-input" placeholder="${f.placeholder || ''}">`
-                            }
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="biz-modal-actions">
-                    <button class="btn-secondary" id="modal-cancel-btn" style="flex: 1;">Cancel</button>
-                    <button class="btn-primary" id="modal-save-btn" style="flex: 1;">${submitLabel}</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        if (window.lucide) lucide.createIcons();
-
-        document.getElementById('modal-cancel-btn').onclick = () => overlay.remove();
-        document.getElementById('modal-save-btn').onclick = async () => {
-            const data = {};
-            fields.forEach(f => {
-                const el = document.getElementById(`modal-${f.id}`);
-                if (el) data[f.id] = el.value;
-            });
-            overlay.remove();
-            if (callback) await callback(data);
-        };
-    },
 
     isLiveEventActive() {
         if (this.state.isAdmin) return true;
@@ -429,8 +386,11 @@ const App = {
                 userEvents = this.state.events;
             } else if (this.state.currentUser && this.state.currentUser.mobile) {
                 const normUser = this.normalizeMobile(this.state.currentUser.mobile);
+                const assignedIds = this.state.currentUser.assignedEvents || [];
                 userEvents = this.state.events.filter(e => {
-                    return e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
+                    const isAuthorizedByNumber = e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
+                    const isAuthorizedById = assignedIds.includes(e.id);
+                    return isAuthorizedByNumber || isAuthorizedById;
                 });
             }
             
@@ -668,18 +628,6 @@ const App = {
         }
     },
 
-    logout() {
-        this.showModal(
-            'Confirm Logout',
-            [],
-            () => {
-                localStorage.clear();
-                window.location.href = window.location.origin;
-            },
-            'Log Out',
-            'Cancel'
-        );
-    },
 
     // --- Background Engine ---
     processImage(imageData, userNotes = '') {
