@@ -862,7 +862,9 @@ window.Admin = {
     },
     normalizeMobile(mobile) {
         if (!mobile) return '';
-        return mobile.replace(/\D/g, '');
+        const digits = mobile.toString().replace(/\D/g, '');
+        // For robust matching, prioritize matching the last 10 digits to ignore country codes
+        return digits.length >= 10 ? digits.slice(-10) : digits;
     },
 
     showToast(msg, status = 'success') {

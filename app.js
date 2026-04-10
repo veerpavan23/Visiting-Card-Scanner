@@ -27,8 +27,9 @@ const App = {
             { id: 'p1', name: 'Alaric Chen', company: 'Nexus Ventures', designation: 'Managing Director', phone: '+1 555-0102', email: 'alaric@nexus.vc', website: 'nexus.vc', address: 'Sand Hill Rd, Menlo Park', status: 'Updated', eventName: 'Global Tech Expo', timestamp: Date.now() },
             { id: 'p2', name: 'Elena Rodriguez', company: 'Stellar Dynamics', designation: 'Chief Architect', phone: '+1 555-0199', email: 'elena@stellar.io', website: 'stellar.io', address: 'Innovation Way, Austin', status: 'Updated', eventName: 'Bizconnex Summit', timestamp: Date.now() }
         ],
-        homeLimit: 10,
-        contactsLimit: 20
+        contactsLimit: 20,
+        lastKnownEventIds: JSON.parse(localStorage.getItem('bizconnex_known_events') || '[]'),
+        lastEventStatuses: {} // eventId -> 'upcoming' | 'live' | 'complete'
     },
 
     config: {
@@ -41,8 +42,31 @@ const App = {
 
     // --- Initialization ---
     init() {
-        console.log('✅ Bizconnex AI Engine Active (v14.07)');
+        console.log('✅ Bizconnex AI Engine Active (v14.10)');
         this.migrateLegacyData();
+        
+        // --- PROACTIVE MONITOR INIT ---
+        // Pre-fill existing event IDs so we only notify on truly NEW ones
+        const normUser = this.state.currentUser ? this.normalizeMobile(this.state.currentUser.mobile) : null;
+        if (normUser) {
+            this.state.lastKnownEventIds = this.state.events.filter(e => {
+                const assignedIds = this.state.currentUser.assignedEvents || [];
+                const isAuthByNum = e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
+                return isAuthByNum || assignedIds.includes(e.id);
+            }).map(e => e.id);
+            localStorage.setItem('bizconnex_known_events', JSON.stringify(this.state.lastKnownEventIds));
+            
+            // Pre-fill current statuses to detect transitions later
+            this.state.events.forEach(e => {
+                const now = new Date();
+                const start = new Date(e.start);
+                const end = new Date(e.end);
+                if (now >= start && now <= end) this.state.lastEventStatuses[e.id] = 'live';
+                else if (now > end) this.state.lastEventStatuses[e.id] = 'complete';
+                else this.state.lastEventStatuses[e.id] = 'upcoming';
+            });
+        }
+
         this.syncCloud(); 
         this.checkConnectivity();
         this.injectDebugUI(); 
@@ -50,6 +74,10 @@ const App = {
         
         this.bindEvents();
         this.processQueue(); 
+
+        // Start Background Monitor (Every 60s)
+        setInterval(() => this.monitorEventStatuses(), 60000);
+
         try { if (window.lucide) lucide.createIcons(); } catch (e) {}
 
         if (this.state.currentUser) {
@@ -1542,8 +1570,30 @@ END:VCARD`;
             const { ref, onValue } = window.FirebaseDB;
             onValue(ref(window.db, 'events_v1'), snapshot => {
                 if (snapshot.exists()) {
-                    this.state.events = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    const allEvents = Object.values(snapshot.val()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    this.state.events = allEvents;
                     localStorage.setItem('bizconnex_events', JSON.stringify(this.state.events));
+                    
+                    // PROACTIVE ASSIGNMENT MONITOR
+                    if (this.state.currentUser) {
+                        const normUser = this.normalizeMobile(this.state.currentUser.mobile);
+                        const assignedIds = this.state.currentUser.assignedEvents || [];
+                        const currentlyAssigned = allEvents.filter(e => {
+                            const isAuthByNum = e.numbers && e.numbers.some(n => this.normalizeMobile(n) === normUser);
+                            return isAuthByNum || assignedIds.includes(e.id);
+                        }).map(e => e.id);
+
+                        // Detect New Assignments
+                        const newAssignments = currentlyAssigned.filter(id => !this.state.lastKnownEventIds.includes(id));
+                        if (newAssignments.length > 0) {
+                            const eventNames = allEvents.filter(e => newAssignments.includes(e.id)).map(e => e.name).join(', ');
+                            this.addNotification('New Event Assigned', `You have been authorized for: ${eventNames}. Tap to view.`);
+                            this.showToast('New Event Assigned!', 'success');
+                            this.state.lastKnownEventIds = [...new Set([...this.state.lastKnownEventIds, ...currentlyAssigned])];
+                            localStorage.setItem('bizconnex_known_events', JSON.stringify(this.state.lastKnownEventIds));
+                        }
+                    }
+
                     // Reactive Refresh
                     if (this.state.currentScreen === 'eventSelect') this.renderScreen('eventSelect');
                     if (this.state.currentScreen === 'home') this.renderScreen('home');
@@ -1596,6 +1646,38 @@ END:VCARD`;
                 }
             });
         }
+    },
+
+    monitorEventStatuses() {
+        if (!this.state.events || !this.state.events.length) return;
+        
+        const now = new Date();
+        this.state.events.forEach(e => {
+            const start = new Date(e.start);
+            const end = new Date(e.end);
+            let currentStatus = 'upcoming';
+            if (now >= start && now <= end) currentStatus = 'live';
+            else if (now > end) currentStatus = 'complete';
+
+            const lastStatus = this.state.lastEventStatuses[e.id];
+            
+            // Notification on Transition
+            if (lastStatus && lastStatus !== currentStatus) {
+                if (currentStatus === 'live') {
+                    this.addNotification('Event is LIVE!', `Trade show "${e.name}" has started. You can now begin scanning cards.`);
+                    this.showToast(`LIVE: ${e.name}`, 'info');
+                } else if (currentStatus === 'complete') {
+                    this.addNotification('Event Completed', `Trade show "${e.name}" has ended. Scanner access is now read-only for this event.`);
+                }
+                
+                // Refresh UI if on relevant screen
+                if (this.state.currentScreen === 'home' || this.state.currentScreen === 'eventSelect') {
+                    this.renderScreen(this.state.currentScreen);
+                }
+            }
+            
+            this.state.lastEventStatuses[e.id] = currentStatus;
+        });
     },
 
     normalizeMobile(mobile) {
